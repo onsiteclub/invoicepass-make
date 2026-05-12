@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#635BFF">
+  <meta name="description" content="InvoicePass — the fastest way to invoice. Pick your trade, send your invoice.">
+  <meta property="og:title" content="InvoicePass · Make an invoice">
+  <meta property="og:description" content="The fastest way to invoice. Built for the people doing the work.">
+  <meta property="og:type" content="website">
+  <title>InvoicePass · Make an invoice</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23635BFF'/%3E%3Cpath d='M30 36h40v6H30zm0 14h40v6H30zm0 14h26v6H30z' fill='white'/%3E%3Ccircle cx='74' cy='30' r='6' fill='%23F5BE58'/%3E%3C/svg%3E">
+
+  <style>
+    :root {
+      --ip-brand-50:  #F4F3FF;
+      --ip-brand-100: #EBE9FE;
+      --ip-brand-500: #7C5DFA;
+      --ip-brand-600: #635BFF;
+      --ip-brand-700: #5046E4;
+      --ip-ink-50:  #F6F9FC;
+      --ip-ink-100: #E3E8EE;
+      --ip-ink-200: #C1C9D2;
+      --ip-ink-300: #A3ACB9;
+      --ip-ink-400: #8898AA;
+      --ip-ink-600: #425466;
+      --ip-ink-900: #0A2540;
+      --ip-amber-100: #FEF3D7;
+      --ip-amber-500: #F5BE58;
+      --ip-amber-600: #E0A93D;
+      --ip-canvas: #F6F9FC;
+      --ip-white: #FFFFFF;
+      --ip-border: #E3E8EE;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    html { background: var(--ip-canvas); }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      color: var(--ip-ink-900);
+      background: var(--ip-canvas);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overscroll-behavior: none;
+      line-height: 1.5;
+    }
+    button, input { font-family: inherit; }
+    button { cursor: pointer; border: none; background: none; color: inherit; }
+    button:focus-visible { outline: 3px solid var(--ip-brand-600); outline-offset: 2px; }
+    input:focus { outline: none; }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      background: var(--ip-white);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    @media (min-width: 700px) {
+      body {
+        display: flex; align-items: center; justify-content: center;
+        padding: 32px; min-height: 100dvh;
+        background: radial-gradient(circle at 30% 20%, #EBE9FE 0%, var(--ip-canvas) 60%);
+      }
+      .app {
+        min-height: 780px; max-height: 92vh; max-width: 420px;
+        border-radius: 36px;
+        box-shadow: 0 32px 80px -16px rgba(10, 37, 64, 0.18), 0 0 0 1px rgba(10, 37, 64, 0.06);
+      }
+      .header { padding-top: 24px; }
+    }
+
+    .header {
+      padding: 16px 24px 0;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; height: 64px;
+    }
+    .wordmark {
+      font-size: 17px; font-weight: 700;
+      letter-spacing: -0.3px; color: var(--ip-ink-900);
+      display: flex; align-items: center; gap: 1px;
+    }
+    .wordmark-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--ip-amber-500);
+      margin-left: 3px; margin-bottom: 11px;
+    }
+    .back-btn {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: var(--ip-ink-50);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ip-ink-900); font-size: 22px;
+      transition: all 150ms var(--ease-out);
+    }
+    .back-btn:hover { background: var(--ip-ink-100); }
+    .back-btn:active { transform: scale(0.94); }
+    .stepper { display: flex; gap: 7px; align-items: center; }
+    .step-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--ip-ink-100);
+      transition: all 280ms var(--ease-out);
+    }
+    .step-dot.completed { background: var(--ip-brand-600); }
+    .step-dot.active {
+      background: var(--ip-brand-600); width: 28px; border-radius: 4px;
+    }
+    .spacer { width: 44px; }
+
+    .main {
+      flex: 1; overflow-y: auto;
+      padding: 28px 24px 16px;
+      -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
+    }
+    .main::-webkit-scrollbar { width: 0; }
+
+    .step { animation: stepIn 360ms var(--ease-out); }
+    @keyframes stepIn {
+      from { opacity: 0; transform: translateX(24px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .step.back { animation: stepInBack 360ms var(--ease-out); }
+    @keyframes stepInBack {
+      from { opacity: 0; transform: translateX(-24px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .eyebrow {
+      font-size: 12px; color: var(--ip-ink-400);
+      letter-spacing: 0.6px; font-weight: 600;
+      margin-bottom: 12px; text-transform: uppercase;
+    }
+    .headline {
+      font-size: 32px; font-weight: 700;
+      color: var(--ip-ink-900);
+      letter-spacing: -0.6px; line-height: 1.1;
+      margin-bottom: 28px;
+    }
+    .headline.sm { font-size: 26px; margin-bottom: 24px; }
+
+    /* HUB grid */
+    .category-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .category-card {
+      background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 16px; padding: 18px 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      align-items: flex-start; text-align: left;
+      transition: all 200ms var(--ease-out);
+      min-height: 130px;
+    }
+    .category-card:hover {
+      border-color: var(--ip-brand-600); transform: translateY(-2px);
+      box-shadow: 0 12px 24px -8px rgba(99, 91, 255, 0.16);
+    }
+    .category-card:active { transform: scale(0.98); }
+    .category-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--ip-brand-50); color: var(--ip-brand-600);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .category-title { font-size: 16px; font-weight: 600; color: var(--ip-ink-900); line-height: 1.2; }
+    .category-sub { font-size: 12px; color: var(--ip-ink-400); line-height: 1.4; margin-top: 2px; }
+
+    .type-card {
+      width: 100%; background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 18px; padding: 20px;
+      display: flex; gap: 16px; align-items: center;
+      text-align: left; transition: all 200ms var(--ease-out);
+    }
+    .type-card + .type-card { margin-top: 12px; }
+    .type-card:hover {
+      border-color: var(--ip-brand-600); transform: translateY(-2px);
+      box-shadow: 0 12px 28px -8px rgba(99, 91, 255, 0.18);
+    }
+    .type-card:active { transform: scale(0.99); }
+    .type-icon {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: var(--ip-brand-50);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ip-brand-600); flex-shrink: 0;
+    }
+    .type-title { font-size: 18px; font-weight: 600; color: var(--ip-ink-900); margin-bottom: 2px; }
+    .type-sub { font-size: 14px; color: var(--ip-ink-400); }
+    .type-arrow { margin-left: auto; color: var(--ip-ink-300); font-size: 22px; flex-shrink: 0; }
+
+    .search-input, .field-input {
+      width: 100%; background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 14px; height: 60px;
+      padding: 0 20px; font-size: 17px;
+      color: var(--ip-ink-900);
+      transition: all 200ms var(--ease-out);
+    }
+    .search-input::placeholder, .field-input::placeholder { color: var(--ip-ink-300); }
+    .search-input:focus, .field-input:focus {
+      border-color: var(--ip-brand-600);
+      box-shadow: 0 0 0 4px rgba(99, 91, 255, 0.14);
+    }
+
+    .section-label {
+      font-size: 12px; color: var(--ip-ink-400);
+      letter-spacing: 0.6px; font-weight: 600;
+      margin: 24px 0 12px; text-transform: uppercase;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    .contact-card {
+      width: 100%; background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 14px; padding: 14px 16px;
+      display: flex; gap: 14px; align-items: center;
+      text-align: left; transition: all 200ms var(--ease-out);
+    }
+    .contact-card + .contact-card { margin-top: 10px; }
+    .contact-card:hover { border-color: var(--ip-brand-600); background: var(--ip-brand-50); }
+    .contact-card:active { transform: scale(0.99); }
+    .avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--ip-brand-50); color: var(--ip-brand-700);
+      font-weight: 600; font-size: 15px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .avatar.plus {
+      background: var(--ip-ink-50); color: var(--ip-ink-400);
+      font-size: 22px; font-weight: 400;
+    }
+    .contact-name { font-size: 16px; font-weight: 600; color: var(--ip-ink-900); }
+    .contact-email { font-size: 13px; color: var(--ip-ink-400); margin-top: 2px; }
+
+    .field { margin-bottom: 24px; }
+    .field-label { font-size: 13px; font-weight: 600; color: var(--ip-ink-600); margin-bottom: 10px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    .chip {
+      background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 999px; padding: 11px 18px;
+      font-size: 14px; font-weight: 500; color: var(--ip-ink-900);
+      transition: all 150ms var(--ease-out);
+    }
+    .chip:hover { border-color: var(--ip-brand-600); color: var(--ip-brand-600); background: var(--ip-brand-50); }
+    .chip:active { transform: scale(0.95); }
+    .chip.custom { border-style: dashed; color: var(--ip-ink-400); }
+
+    .line-item {
+      background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 14px; padding: 16px 18px;
+      margin-bottom: 10px;
+      animation: stepIn 280ms var(--ease-out);
+    }
+    .line-item-row { display: flex; justify-content: space-between; align-items: baseline; }
+    .line-item-row + .line-item-row { margin-top: 6px; }
+    .line-item-desc { font-size: 16px; font-weight: 600; color: var(--ip-ink-900); }
+    .line-item-remove { color: var(--ip-ink-300); font-size: 22px; padding: 0 4px; transition: color 150ms; }
+    .line-item-remove:hover { color: var(--ip-ink-900); }
+    .line-item-meta { font-size: 13px; color: var(--ip-ink-400); }
+    .line-item-amount { font-size: 17px; font-weight: 600; color: var(--ip-ink-900); }
+
+    .empty {
+      text-align: center; padding: 36px 24px;
+      color: var(--ip-ink-300); font-size: 14px;
+      border: 1.5px dashed var(--ip-border);
+      border-radius: 14px; margin-bottom: 12px;
+    }
+
+    .review-block { background: var(--ip-canvas); border-radius: 14px; padding: 16px 18px; margin-bottom: 12px; }
+    .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .review-label { font-size: 11px; color: var(--ip-ink-400); letter-spacing: 0.6px; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; }
+    .review-value { font-size: 16px; font-weight: 500; color: var(--ip-ink-900); }
+    .review-items-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: var(--ip-ink-900); }
+    .review-items-row + .review-items-row { border-top: 1px solid var(--ip-ink-100); }
+    .review-items-row .amt { font-weight: 600; }
+
+    .totals { padding: 20px 4px 0; border-top: 1px solid var(--ip-border); margin-top: 8px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+    .totals-row.grand { border-top: 1px solid var(--ip-border); margin-top: 12px; padding-top: 18px; font-size: 22px; font-weight: 700; }
+    .totals-label { color: var(--ip-ink-600); }
+    .totals-value { color: var(--ip-ink-900); font-weight: 600; }
+
+    .footer {
+      padding: 16px 24px 28px;
+      border-top: 1px solid var(--ip-border);
+      background: var(--ip-white); flex-shrink: 0;
+      padding-bottom: calc(28px + env(safe-area-inset-bottom));
+    }
+    .footer.hidden { display: none; }
+    .footer-subtotal { display: flex; justify-content: space-between; font-size: 14px; color: var(--ip-ink-600); margin-bottom: 14px; }
+    .footer-subtotal strong { font-weight: 600; color: var(--ip-ink-900); }
+
+    .cta {
+      width: 100%; background: var(--ip-brand-600);
+      color: var(--ip-white); border-radius: 14px;
+      height: 60px; font-size: 17px; font-weight: 600;
+      transition: all 180ms var(--ease-out);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .cta:hover { background: var(--ip-brand-700); }
+    .cta:active { transform: scale(0.985); }
+    .cta:disabled { background: var(--ip-ink-100); color: var(--ip-ink-400); cursor: not-allowed; }
+    .cta.send { background: var(--ip-amber-500); color: var(--ip-ink-900); }
+    .cta.send:hover { background: var(--ip-amber-600); }
+
+    .modal-bg {
+      position: absolute; inset: 0;
+      background: rgba(10, 37, 64, 0.5);
+      display: flex; align-items: flex-end; justify-content: center;
+      z-index: 100;
+      animation: fadeIn 200ms var(--ease-out);
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal {
+      background: var(--ip-white);
+      border-radius: 24px 24px 0 0;
+      width: 100%; padding: 24px 24px 32px;
+      animation: slideUp 320ms var(--ease-out);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; letter-spacing: -0.3px; }
+    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+    .btn-secondary {
+      flex: 1; background: var(--ip-ink-50); color: var(--ip-ink-900);
+      border-radius: 14px; height: 56px; font-size: 16px; font-weight: 600;
+    }
+    .btn-secondary:hover { background: var(--ip-ink-100); }
+    .btn-primary {
+      flex: 1; background: var(--ip-brand-600); color: var(--ip-white);
+      border-radius: 14px; height: 56px; font-size: 16px; font-weight: 600;
+    }
+    .btn-primary:hover { background: var(--ip-brand-700); }
+    .btn-primary:disabled { background: var(--ip-ink-100); color: var(--ip-ink-400); cursor: not-allowed; }
+
+    .success {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px; text-align: center;
+    }
+    .success-icon {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: var(--ip-amber-100); color: var(--ip-amber-600);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 28px;
+      animation: pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .success-title { font-size: 30px; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px; }
+    .success-sub { font-size: 16px; color: var(--ip-ink-600); margin-bottom: 36px; line-height: 1.5; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  </style>
+</head>
+<body>
+  <h1 class="sr-only">InvoicePass — Make an invoice</h1>
+
+  <div class="app" id="app">
+    <header class="header" id="header">
+      <button class="back-btn" id="backBtn" aria-label="Back">←</button>
+      <div class="stepper" id="stepper" aria-label="Progress"></div>
+      <div class="spacer"></div>
+    </header>
+    <main class="main" id="main"></main>
+    <footer class="footer hidden" id="footer"></footer>
+    <div id="modalRoot"></div>
+  </div>
+
+  <script>
+    const ICONS = {
+      construction: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22h20"/><path d="M4 22V10l8-6 8 6v12"/><path d="M9 22V14h6v8"/></svg>',
+      electrical: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+      plumbing: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h6v9H3z"/><path d="M9 6h12v6H9z"/><path d="M9 12V6"/></svg>',
+      hvac: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 9V3M12 21v-6M9 12H3M21 12h-6M16 8l4-4M4 20l4-4M16 16l4 4M4 4l4 4"/></svg>',
+      painting: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="6" rx="1"/><path d="M7 9v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9"/><path d="M12 14v4"/><rect x="10" y="18" width="4" height="4" rx="1"/></svg>',
+      cleaning: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l4-4 14 14-4 4z"/><path d="M14 4l5 5"/><path d="M7 13l-3 3v4h4l3-3"/></svg>',
+      landscaping: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M12 7c0-3 3-5 6-5-1 4-3 7-6 7"/><path d="M12 12c0-3-3-5-6-5 1 4 3 7 6 7"/><path d="M12 17c0-3 3-5 6-5-1 4-3 7-6 7"/></svg>',
+      handyman: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+      other: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
+      clock: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      grid: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+      check: '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    };
+
+    const CATEGORIES = [
+      { id: 'construction', title: 'Construction', sub: 'Framing, drywall, builds', presets: {
+        'Floor & Wall': { qty: 200, price: 22.50, unit: 'sq ft' },
+        'Rough Framing': { qty: 180, price: 28.00, unit: 'sq ft' },
+        'Roof Framing': { qty: 220, price: 22.50, unit: 'sq ft' },
+        'Drywall': { qty: 800, price: 2.50, unit: 'sq ft' },
+        'Insulation': { qty: 800, price: 1.80, unit: 'sq ft' },
+        'Backing & Blocking': { qty: 1, price: 350, unit: 'job' },
+      }},
+      { id: 'electrical', title: 'Electrical', sub: 'Wiring, panels, fixtures', presets: {
+        'Outlet install': { qty: 1, price: 120, unit: 'outlet' },
+        'Light fixture': { qty: 1, price: 180, unit: 'fixture' },
+        'Panel upgrade': { qty: 1, price: 2400, unit: 'job' },
+        'Service call': { qty: 1, price: 150, unit: 'visit' },
+        'Rewire room': { qty: 1, price: 850, unit: 'room' },
+        'EV charger': { qty: 1, price: 1200, unit: 'job' },
+      }},
+      { id: 'plumbing', title: 'Plumbing', sub: 'Pipes, fixtures, drains', presets: {
+        'Faucet replace': { qty: 1, price: 220, unit: 'fixture' },
+        'Drain unclog': { qty: 1, price: 180, unit: 'job' },
+        'Toilet install': { qty: 1, price: 380, unit: 'fixture' },
+        'Water heater': { qty: 1, price: 1800, unit: 'job' },
+        'Sink install': { qty: 1, price: 320, unit: 'fixture' },
+        'Service call': { qty: 1, price: 150, unit: 'visit' },
+      }},
+      { id: 'hvac', title: 'HVAC', sub: 'Heating, cooling, vents', presets: {
+        'Furnace tune-up': { qty: 1, price: 180, unit: 'visit' },
+        'AC install': { qty: 1, price: 3800, unit: 'unit' },
+        'Heat pump': { qty: 1, price: 5500, unit: 'unit' },
+        'Duct cleaning': { qty: 1, price: 450, unit: 'job' },
+        'Filter swap': { qty: 4, price: 35, unit: 'filter' },
+        'Service call': { qty: 1, price: 160, unit: 'visit' },
+      }},
+      { id: 'painting', title: 'Painting', sub: 'Interior, exterior, trim', presets: {
+        'Interior room': { qty: 1, price: 450, unit: 'room' },
+        'Exterior wall': { qty: 300, price: 4.50, unit: 'sq ft' },
+        'Trim & base': { qty: 100, price: 4.00, unit: 'lin ft' },
+        'Cabinet refinish': { qty: 12, price: 95, unit: 'door' },
+        'Ceiling': { qty: 200, price: 3.50, unit: 'sq ft' },
+        'Touch-ups': { qty: 2, price: 65, unit: 'hr' },
+      }},
+      { id: 'cleaning', title: 'Cleaning', sub: 'Home, office, post-build', presets: {
+        'Regular clean': { qty: 3, price: 50, unit: 'hr' },
+        'Deep clean': { qty: 1, price: 280, unit: 'visit' },
+        'Move in/out': { qty: 1, price: 380, unit: 'visit' },
+        'Carpet': { qty: 600, price: 0.55, unit: 'sq ft' },
+        'Windows': { qty: 20, price: 14, unit: 'window' },
+        'Post-construction': { qty: 1, price: 650, unit: 'job' },
+      }},
+      { id: 'landscaping', title: 'Landscaping', sub: 'Lawn, garden, snow', presets: {
+        'Lawn mowing': { qty: 1, price: 65, unit: 'visit' },
+        'Hedge trim': { qty: 2, price: 85, unit: 'hr' },
+        'Mulching': { qty: 4, price: 90, unit: 'yard' },
+        'Snow removal': { qty: 1, price: 80, unit: 'visit' },
+        'Garden upkeep': { qty: 3, price: 55, unit: 'hr' },
+        'Leaf cleanup': { qty: 1, price: 180, unit: 'visit' },
+      }},
+      { id: 'handyman', title: 'Handyman', sub: 'Repairs, assembly, mounts', presets: {
+        'TV mount': { qty: 1, price: 140, unit: 'job' },
+        'Assembly': { qty: 2, price: 85, unit: 'hr' },
+        'Picture hanging': { qty: 6, price: 25, unit: 'piece' },
+        'Drywall patch': { qty: 1, price: 180, unit: 'patch' },
+        'Door adjust': { qty: 1, price: 120, unit: 'door' },
+        'Hourly': { qty: 2, price: 75, unit: 'hr' },
+      }},
+      { id: 'other', title: 'Other', sub: 'Custom from scratch', presets: {} },
+    ];
+
+    const CONTACTS = [
+      { initials: 'PB', name: 'Paulo Bravo', email: 'paulo@bravoframing.ca' },
+      { initials: 'JS', name: 'Joelmir Silva', email: 'shabba@onsiteclub.ca' },
+      { initials: 'MO', name: 'Mike Osterman', email: 'mike@ostercon.ca' },
+    ];
+
+    const TYPE_LABELS = { timesheet: 'Timesheet', piecework: 'Piecework' };
+
+    const state = {
+      view: 'hub',
+      step: 1,
+      direction: 'forward',
+      category: null,
+      type: null,
+      contact: null,
+      jobSite: '',
+      dueDate: '',
+      lineItems: [],
+      modal: null,
+    };
+
+    function $(id) { return document.getElementById(id); }
+
+    function fmt(n) {
+      return n.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    function categoryById(id) { return CATEGORIES.find(c => c.id === id); }
+
+    function calculateTotals() {
+      const subtotal = state.lineItems.reduce((s, i) => s + i.qty * i.price, 0);
+      const hst = subtotal * 0.13;
+      return { subtotal, hst, total: subtotal + hst };
+    }
+
+    function renderHeader() {
+      const backBtn = $('backBtn');
+      const stepper = $('stepper');
+      if (state.view === 'hub' || state.view === 'sent') {
+        backBtn.style.visibility = 'hidden';
+        stepper.innerHTML = `<span class="wordmark">invoicepass<span class="wordmark-dot"></span></span>`;
+        return;
+      }
+      backBtn.style.visibility = 'visible';
+      stepper.innerHTML = [1,2,3,4,5].map(n => {
+        let cls = '';
+        if (n < state.step) cls = 'completed';
+        if (n === state.step) cls = 'active';
+        return `<div class="step-dot ${cls}"></div>`;
+      }).join('');
+    }
+
+    function selectCategory(id) {
+      state.category = id;
+      state.view = 'flow';
+      state.step = 1;
+      state.direction = 'forward';
+      render();
+    }
+
+    function setStep(n) {
+      state.direction = n > state.step ? 'forward' : 'back';
+      state.step = n;
+      render();
+    }
+
+    function setType(t) { state.type = t; setStep(2); }
+
+    function selectContact(name) { state.contact = name; setStep(3); }
+
+    function saveStep3() {
+      state.jobSite = $('jobSiteInput').value.trim();
+      state.dueDate = $('dueDateInput').value;
+      setStep(4);
+    }
+
+    function addPresetItem(name) {
+      const preset = categoryById(state.category).presets[name];
+      state.lineItems.push({
+        id: Date.now() + Math.random(),
+        description: name,
+        qty: preset.qty, price: preset.price, unit: preset.unit,
+      });
+      render();
+    }
+
+    function removeLineItem(id) {
+      state.lineItems = state.lineItems.filter(i => i.id !== id);
+      render();
+    }
+
+    function openCustomItem() { state.modal = 'custom-item'; renderModal(); }
+    function closeModal() { state.modal = null; renderModal(); }
+
+    function saveCustomItem() {
+      const desc = $('customDesc').value.trim();
+      const qty = parseFloat($('customQty').value) || 1;
+      const price = parseFloat($('customPrice').value) || 0;
+      const unit = $('customUnit').value.trim() || 'unit';
+      if (!desc) return;
+      state.lineItems.push({
+        id: Date.now() + Math.random(),
+        description: desc, qty, price, unit,
+      });
+      closeModal();
+      render();
+    }
+
+    function resetFlow() {
+      state.view = 'hub';
+      state.step = 1;
+      state.direction = 'forward';
+      state.category = null;
+      state.type = null;
+      state.contact = null;
+      state.jobSite = '';
+      state.dueDate = '';
+      state.lineItems = [];
+      state.modal = null;
+      render();
+    }
+
+    function goBack() {
+      if (state.view !== 'flow') return;
+      if (state.step === 1) {
+        state.view = 'hub';
+        state.category = null;
+        render();
+        return;
+      }
+      setStep(state.step - 1);
+    }
+
+    function renderHub() {
+      $('footer').classList.add('hidden');
+      return `
+        <div class="step">
+          <div class="eyebrow">Make an invoice</div>
+          <h2 class="headline">What's your<br>trade today?</h2>
+          <div class="category-grid">
+            ${CATEGORIES.map(c => `
+              <button class="category-card" onclick="selectCategory('${c.id}')">
+                <div class="category-icon">${ICONS[c.id]}</div>
+                <div>
+                  <div class="category-title">${c.title}</div>
+                  <div class="category-sub">${c.sub}</div>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStep1() {
+      const cat = categoryById(state.category);
+      $('footer').classList.add('hidden');
+      return `
+        <div class="step${state.direction === 'back' ? ' back' : ''}">
+          <div class="eyebrow">${cat.title.toUpperCase()} · NEW INVOICE</div>
+          <h2 class="headline">What are you<br>billing for?</h2>
+          <button class="type-card" onclick="setType('timesheet')">
+            <div class="type-icon">${ICONS.clock}</div>
+            <div>
+              <div class="type-title">Timesheet</div>
+              <div class="type-sub">Hours × rate</div>
+            </div>
+            <div class="type-arrow">→</div>
+          </button>
+          <button class="type-card" onclick="setType('piecework')">
+            <div class="type-icon">${ICONS.grid}</div>
+            <div>
+              <div class="type-title">Piecework</div>
+              <div class="type-sub">By the job</div>
+            </div>
+            <div class="type-arrow">→</div>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderStep2() {
+      const cat = categoryById(state.category);
+      $('footer').classList.add('hidden');
+      return `
+        <div class="step${state.direction === 'back' ? ' back' : ''}">
+          <div class="eyebrow">${cat.title.toUpperCase()} · ${TYPE_LABELS[state.type].toUpperCase()}</div>
+          <h2 class="headline">Who's getting<br>billed?</h2>
+          <input class="search-input" placeholder="Search or type a name" autofocus />
+          <div class="section-label">Recent</div>
+          ${CONTACTS.map(c => `
+            <button class="contact-card" onclick="selectContact('${escapeHtml(c.name)}')">
+              <div class="avatar">${c.initials}</div>
+              <div style="flex: 1;">
+                <div class="contact-name">${escapeHtml(c.name)}</div>
+                <div class="contact-email">${escapeHtml(c.email)}</div>
+              </div>
+            </button>
+          `).join('')}
+          <button class="contact-card" onclick="selectContact('New contact')">
+            <div class="avatar plus">+</div>
+            <div style="flex: 1;">
+              <div class="contact-name" style="color: var(--ip-ink-400); font-weight: 500;">New contact</div>
+            </div>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderStep3() {
+      $('footer').classList.remove('hidden');
+      $('footer').innerHTML = `<button class="cta" onclick="saveStep3()">Continue →</button>`;
+      return `
+        <div class="step${state.direction === 'back' ? ' back' : ''}">
+          <div class="eyebrow">${escapeHtml(state.contact)}</div>
+          <h2 class="headline">Where and<br>when?</h2>
+          <div class="field">
+            <div class="field-label">Job site</div>
+            <input class="field-input" id="jobSiteInput" placeholder="e.g. 142 Maple St" value="${escapeHtml(state.jobSite)}" />
+          </div>
+          <div class="field">
+            <div class="field-label">Due date</div>
+            <input class="field-input" type="date" id="dueDateInput" value="${escapeHtml(state.dueDate)}" />
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStep4() {
+      const cat = categoryById(state.category);
+      const t = calculateTotals();
+      const presetNames = Object.keys(cat.presets);
+      const hasPresets = presetNames.length > 0;
+
+      $('footer').classList.remove('hidden');
+      $('footer').innerHTML = `
+        ${state.lineItems.length > 0 ? `
+          <div class="footer-subtotal">
+            <span>Subtotal · ${state.lineItems.length} item${state.lineItems.length > 1 ? 's' : ''}</span>
+            <strong>${fmt(t.subtotal)}</strong>
+          </div>
+        ` : ''}
+        <button class="cta" ${state.lineItems.length === 0 ? 'disabled' : ''} onclick="setStep(5)">Review invoice →</button>
+      `;
+
+      return `
+        <div class="step${state.direction === 'back' ? ' back' : ''}">
+          <div class="eyebrow">${cat.title.toUpperCase()} · ${escapeHtml(state.contact)}</div>
+          <h2 class="headline">What did<br>you do?</h2>
+          ${hasPresets ? `
+            <div class="section-label">Quick add</div>
+            <div class="chips">
+              ${presetNames.map(p => `<button class="chip" onclick="addPresetItem('${escapeHtml(p)}')">+ ${escapeHtml(p)}</button>`).join('')}
+              <button class="chip custom" onclick="openCustomItem()">+ Custom</button>
+            </div>
+          ` : `
+            <button class="chip custom" style="width: 100%; margin-bottom: 24px;" onclick="openCustomItem()">+ Add custom item</button>
+          `}
+          ${state.lineItems.length > 0
+            ? `<div class="section-label">Added (${state.lineItems.length})</div>
+               ${state.lineItems.map(item => `
+                 <div class="line-item">
+                   <div class="line-item-row">
+                     <div class="line-item-desc">${escapeHtml(item.description)}</div>
+                     <button class="line-item-remove" onclick="removeLineItem(${item.id})" aria-label="Remove">×</button>
+                   </div>
+                   <div class="line-item-row">
+                     <div class="line-item-meta">${item.qty} ${escapeHtml(item.unit)} × ${fmt(item.price)}</div>
+                     <div class="line-item-amount">${fmt(item.qty * item.price)}</div>
+                   </div>
+                 </div>
+               `).join('')}`
+            : `<div class="empty">${hasPresets ? 'Tap a chip above to add your first line' : 'Tap above to add your first custom item'}</div>`
+          }
+        </div>
+      `;
+    }
+
+    function renderStep5() {
+      const cat = categoryById(state.category);
+      const t = calculateTotals();
+      $('footer').classList.remove('hidden');
+      $('footer').innerHTML = `<button class="cta send" onclick="state.view='sent'; render();">Send invoice</button>`;
+      return `
+        <div class="step${state.direction === 'back' ? ' back' : ''}">
+          <div class="eyebrow">REVIEW · ${cat.title.toUpperCase()}</div>
+          <h2 class="headline sm">INV-0001</h2>
+          <div class="review-block">
+            <div class="review-label">To</div>
+            <div class="review-value">${escapeHtml(state.contact)}</div>
+          </div>
+          <div class="review-grid">
+            <div class="review-block" style="margin: 0;">
+              <div class="review-label">Job site</div>
+              <div class="review-value">${escapeHtml(state.jobSite) || '—'}</div>
+            </div>
+            <div class="review-block" style="margin: 0;">
+              <div class="review-label">Due</div>
+              <div class="review-value">${escapeHtml(state.dueDate) || '—'}</div>
+            </div>
+          </div>
+          <div class="review-block">
+            <div class="review-label" style="margin-bottom: 12px;">Line items</div>
+            ${state.lineItems.map(item => `
+              <div class="review-items-row">
+                <span>${escapeHtml(item.description)}</span>
+                <span class="amt">${fmt(item.qty * item.price)}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="totals">
+            <div class="totals-row">
+              <span class="totals-label">Subtotal</span>
+              <span class="totals-value">${fmt(t.subtotal)}</span>
+            </div>
+            <div class="totals-row">
+              <span class="totals-label">HST (13%)</span>
+              <span class="totals-value">${fmt(t.hst)}</span>
+            </div>
+            <div class="totals-row grand">
+              <span>Total</span>
+              <span>${fmt(t.total)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSent() {
+      $('footer').classList.add('hidden');
+      return `
+        <div class="success">
+          <div class="success-icon">${ICONS.check}</div>
+          <h2 class="success-title">Invoice sent</h2>
+          <p class="success-sub">${escapeHtml(state.contact)} will get notified.<br>You'll see updates here.</p>
+          <button class="cta" style="max-width: 240px;" onclick="resetFlow()">Make another</button>
+        </div>
+      `;
+    }
+
+    function renderModal() {
+      const root = $('modalRoot');
+      if (state.modal === 'custom-item') {
+        root.innerHTML = `
+          <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+            <div class="modal">
+              <div class="modal-title">Custom item</div>
+              <div style="margin-bottom: 14px;">
+                <input class="field-input" id="customDesc" placeholder="Description" autofocus />
+              </div>
+              <div class="modal-row">
+                <input class="field-input" id="customQty" type="number" placeholder="Qty" value="1" />
+                <input class="field-input" id="customPrice" type="number" placeholder="Price" step="0.01" />
+              </div>
+              <div style="margin-bottom: 14px;">
+                <input class="field-input" id="customUnit" placeholder="Unit (hr, sq ft, job…)" />
+              </div>
+              <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveCustomItem()">Add item</button>
+              </div>
+            </div>
+          </div>
+        `;
+        setTimeout(() => $('customDesc')?.focus(), 100);
+      } else {
+        root.innerHTML = '';
+      }
+    }
+
+    function render() {
+      renderHeader();
+      const main = $('main');
+      let content = '';
+
+      if (state.view === 'hub') content = renderHub();
+      else if (state.view === 'sent') content = renderSent();
+      else {
+        switch (state.step) {
+          case 1: content = renderStep1(); break;
+          case 2: content = renderStep2(); break;
+          case 3: content = renderStep3(); break;
+          case 4: content = renderStep4(); break;
+          case 5: content = renderStep5(); break;
+        }
+      }
+
+      main.innerHTML = content;
+      main.scrollTop = 0;
+      renderModal();
+    }
+
+    $('backBtn').addEventListener('click', goBack);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (state.modal) closeModal();
+        else if (state.view === 'flow') goBack();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
