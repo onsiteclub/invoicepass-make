@@ -290,6 +290,30 @@
     .review-items-row + .review-items-row { border-top: 1px solid var(--ip-ink-100); }
     .review-items-row .amt { font-weight: 600; }
 
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 4px; margin-top: 8px;
+      border-top: 1px solid var(--ip-border);
+    }
+    .toggle-label { font-size: 14px; color: var(--ip-ink-900); font-weight: 500; }
+    .toggle-sub { font-size: 12px; color: var(--ip-ink-400); margin-top: 2px; }
+    .toggle-switch {
+      width: 48px; height: 28px; border-radius: 999px;
+      background: var(--ip-ink-100); position: relative;
+      transition: background 200ms var(--ease-out);
+      flex-shrink: 0;
+    }
+    .toggle-switch.on { background: var(--ip-brand-600); }
+    .toggle-switch::after {
+      content: ''; position: absolute;
+      top: 3px; left: 3px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--ip-white);
+      transition: transform 200ms var(--ease-out);
+      box-shadow: 0 1px 2px rgba(10, 37, 64, 0.2);
+    }
+    .toggle-switch.on::after { transform: translateX(20px); }
+
     .totals { padding: 20px 4px 0; border-top: 1px solid var(--ip-border); margin-top: 8px; }
     .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
     .totals-row.grand { border-top: 1px solid var(--ip-border); margin-top: 12px; padding-top: 18px; font-size: 22px; font-weight: 700; }
@@ -466,11 +490,9 @@
       { id: 'other', title: 'Other', sub: 'Custom from scratch', presets: {} },
     ];
 
-    const CONTACTS = [
-      { initials: 'PB', name: 'Paulo Bravo', email: 'paulo@bravoframing.ca' },
-      { initials: 'JS', name: 'Joelmir Silva', email: 'shabba@onsiteclub.ca' },
-      { initials: 'MO', name: 'Mike Osterman', email: 'mike@ostercon.ca' },
-    ];
+    // Recent contacts will be populated from localStorage as users complete invoices.
+    // Empty by default — no seed data.
+    const CONTACTS = [];
 
     const TYPE_LABELS = { timesheet: 'Timesheet', piecework: 'Piecework' };
 
@@ -482,8 +504,15 @@
       type: null,
       contact: null,
       jobSite: '',
+      serviceDate: '',  // piecework only — when the work was performed
       dueDate: '',
-      lineItems: [],
+      lineItems: [],          // piecework only
+      hourlyRate: 0,          // timesheet only
+      timeEntries: [],        // timesheet only: { id, date, start, end, breakMinutes, totalMinutes }
+      editingEntry: null,     // entry being edited in the modal
+      contactExtras: { email: '', phone: '', address: '', businessNumber: '' },
+      showContactDetails: false,
+      applyHst: true,         // toggle on Step 5 — sets HST 13% on/off
       modal: null,
     };
 
@@ -512,10 +541,41 @@
 
     function categoryById(id) { return CATEGORIES.find(c => c.id === id); }
 
+    // ---- Hours helpers (HH:MM <-> minutes) ----
+    function minutesFromHHMM(hhmm) {
+      if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return 0;
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 60 + m;
+    }
+    function computeEntryMinutes(start, end, breakMin) {
+      const s = minutesFromHHMM(start);
+      let e = minutesFromHHMM(end);
+      if (e < s) e += 24 * 60; // overnight (e.g. 22:00 -> 02:00)
+      const total = e - s - (Number(breakMin) || 0);
+      return Math.max(0, total);
+    }
+    function formatHM(totalMinutes) {
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      if (h === 0) return m + 'm';
+      if (m === 0) return h + 'h';
+      return h + 'h ' + m + 'm';
+    }
+    function decimalHours(totalMinutes) {
+      return Math.round((totalMinutes / 60) * 100) / 100;
+    }
+
     function calculateTotals() {
+      const rate = state.applyHst ? 0.13 : 0;
+      if (state.type === 'timesheet') {
+        const totalMin = state.timeEntries.reduce((s, e) => s + e.totalMinutes, 0);
+        const subtotal = Math.round((totalMin / 60) * state.hourlyRate * 100) / 100;
+        const hst = Math.round(subtotal * rate * 100) / 100;
+        return { subtotal, hst, total: Math.round((subtotal + hst) * 100) / 100, totalMinutes: totalMin };
+      }
       const subtotal = state.lineItems.reduce((s, i) => s + i.qty * i.price, 0);
-      const hst = subtotal * 0.13;
-      return { subtotal, hst, total: subtotal + hst };
+      const hst = Math.round(subtotal * rate * 100) / 100;
+      return { subtotal, hst, total: Math.round((subtotal + hst) * 100) / 100, totalMinutes: 0 };
     }
 
     function renderHeader() {
@@ -556,6 +616,8 @@
     function saveStep3() {
       state.jobSite = $('jobSiteInput').value.trim();
       state.dueDate = $('dueDateInput').value;
+      const sd = $('serviceDateInput');
+      if (sd) state.serviceDate = sd.value;
       setStep(4);
     }
 
@@ -574,8 +636,24 @@
       render();
     }
 
-    function openCustomItem() { state.modal = 'custom-item'; renderModal(); }
-    function closeModal() { state.modal = null; renderModal(); }
+    function openCustomItem() {
+      state.editingLineItem = null;
+      state.modal = 'custom-item';
+      renderModal();
+    }
+    function openEditLineItem(id) {
+      const item = state.lineItems.find(i => i.id === id);
+      if (!item) return;
+      state.editingLineItem = { ...item };
+      state.modal = 'custom-item';
+      renderModal();
+    }
+    function closeModal() {
+      state.editingEntry = null;
+      state.editingLineItem = null;
+      state.modal = null;
+      renderModal();
+    }
 
     function saveCustomItem() {
       const desc = $('customDesc').value.trim();
@@ -583,11 +661,74 @@
       const price = parseFloat($('customPrice').value) || 0;
       const unit = $('customUnit').value.trim() || 'unit';
       if (!desc) return;
-      state.lineItems.push({
-        id: Date.now() + Math.random(),
-        description: desc, qty, price, unit,
-      });
+      const editing = state.editingLineItem;
+      if (editing && editing.id != null) {
+        const idx = state.lineItems.findIndex(i => i.id === editing.id);
+        if (idx >= 0) state.lineItems[idx] = { id: editing.id, description: desc, qty, price, unit };
+      } else {
+        state.lineItems.push({
+          id: Date.now() + Math.random(),
+          description: desc, qty, price, unit,
+        });
+      }
       closeModal();
+      render();
+    }
+
+    // ---- Time entries (timesheet) ----
+    function openTimeEntry(entryId) {
+      if (entryId != null) {
+        const e = state.timeEntries.find(x => x.id === entryId);
+        if (e) state.editingEntry = { ...e };
+      } else {
+        const today = new Date().toISOString().slice(0, 10);
+        state.editingEntry = { id: null, date: today, start: '08:00', end: '17:00', breakMinutes: 30 };
+      }
+      state.modal = 'time-entry';
+      renderModal();
+    }
+    function setHourlyRate(value) {
+      state.hourlyRate = parseFloat(value) || 0;
+      // light re-render of footer subtotal without full step rebuild
+      const sub = calculateTotals();
+      const sf = document.getElementById('hourlySubtotal');
+      if (sf) sf.textContent = fmt(sub.subtotal);
+      const cta = document.getElementById('hourlyCta');
+      if (cta) cta.disabled = !(state.timeEntries.length > 0 && state.hourlyRate > 0);
+    }
+    function saveTimeEntry() {
+      const date = $('teDate').value;
+      const start = $('teStart').value;
+      const end = $('teEnd').value;
+      const breakMinutes = parseInt($('teBreak').value, 10) || 0;
+      if (!date || !start || !end) return;
+      const totalMinutes = computeEntryMinutes(start, end, breakMinutes);
+      if (totalMinutes <= 0) {
+        alert('End time must be after start time (or break too long).');
+        return;
+      }
+      const editing = state.editingEntry;
+      if (editing && editing.id != null) {
+        const idx = state.timeEntries.findIndex(x => x.id === editing.id);
+        if (idx >= 0) state.timeEntries[idx] = { id: editing.id, date, start, end, breakMinutes, totalMinutes };
+      } else {
+        state.timeEntries.push({
+          id: Date.now() + Math.random(),
+          date, start, end, breakMinutes, totalMinutes,
+        });
+      }
+      // keep entries sorted by date
+      state.timeEntries.sort((a, b) => a.date.localeCompare(b.date));
+      closeModal();
+      render();
+    }
+    function removeTimeEntry(id) {
+      state.timeEntries = state.timeEntries.filter(e => e.id !== id);
+      render();
+    }
+
+    function toggleHst() {
+      state.applyHst = !state.applyHst;
       render();
     }
 
@@ -599,8 +740,15 @@
       state.type = null;
       state.contact = null;
       state.jobSite = '';
+      state.serviceDate = '';
       state.dueDate = '';
       state.lineItems = [];
+      state.hourlyRate = 0;
+      state.timeEntries = [];
+      state.editingEntry = null;
+      state.contactExtras = { email: '', phone: '', address: '', businessNumber: '' };
+      state.showContactDetails = false;
+      state.applyHst = true;
       state.modal = null;
       render();
     }
@@ -664,30 +812,87 @@
       `;
     }
 
+    function captureContactExtras() {
+      // Read inputs only if the expanded section is rendered
+      const email = $('contactEmailInput')?.value.trim() ?? state.contactExtras.email;
+      const phone = $('contactPhoneInput')?.value.trim() ?? state.contactExtras.phone;
+      const address = $('contactAddressInput')?.value.trim() ?? state.contactExtras.address;
+      const businessNumber = $('contactBizInput')?.value.trim() ?? state.contactExtras.businessNumber;
+      state.contactExtras = { email, phone, address, businessNumber };
+    }
+
+    function submitContactName() {
+      const v = $('contactInput')?.value.trim();
+      if (!v) return;
+      captureContactExtras();
+      selectContact(v);
+    }
+
+    function toggleContactDetails() {
+      // Persist what the user already typed in the name field across re-render
+      const typed = $('contactInput')?.value;
+      if (typed != null) state._typedContactName = typed;
+      captureContactExtras();
+      state.showContactDetails = !state.showContactDetails;
+      render();
+    }
+
     function renderStep2() {
       const cat = categoryById(state.category);
       $('footer').classList.add('hidden');
+      const hasRecent = CONTACTS.length > 0;
+      const x = state.contactExtras;
+      const nameValue = state._typedContactName != null ? state._typedContactName : '';
+      state._typedContactName = null;
       return `
         <div class="step${state.direction === 'back' ? ' back' : ''}">
           <div class="eyebrow">${cat.title.toUpperCase()} · ${TYPE_LABELS[state.type].toUpperCase()}</div>
           <h2 class="headline">Who's getting<br>billed?</h2>
-          <input class="search-input" placeholder="Search or type a name" autofocus />
-          <div class="section-label">Recent</div>
-          ${CONTACTS.map(c => `
-            <button class="contact-card" onclick="selectContact('${escapeHtml(c.name)}')">
-              <div class="avatar">${c.initials}</div>
-              <div style="flex: 1;">
-                <div class="contact-name">${escapeHtml(c.name)}</div>
-                <div class="contact-email">${escapeHtml(c.email)}</div>
-              </div>
-            </button>
-          `).join('')}
-          <button class="contact-card" onclick="selectContact('New contact')">
-            <div class="avatar plus">+</div>
-            <div style="flex: 1;">
-              <div class="contact-name" style="color: var(--ip-ink-400); font-weight: 500;">New contact</div>
-            </div>
+          <input class="search-input" id="contactInput" placeholder="Type the recipient's name"
+            value="${escapeHtml(nameValue)}"
+            autofocus
+            onkeydown="if(event.key==='Enter') submitContactName()" />
+
+          <button type="button" onclick="toggleContactDetails()"
+            style="margin-top: 14px; background: none; color: var(--ip-brand-600); font-size: 14px; font-weight: 600; padding: 4px 0;">
+            ${state.showContactDetails ? '− Hide details' : '+ Add more details (optional)'}
           </button>
+
+          ${state.showContactDetails ? `
+            <div style="margin-top: 12px;">
+              <div class="field">
+                <div class="field-label">Email</div>
+                <input class="field-input" id="contactEmailInput" type="email" placeholder="name@example.com" value="${escapeHtml(x.email)}" />
+              </div>
+              <div class="field">
+                <div class="field-label">Phone</div>
+                <input class="field-input" id="contactPhoneInput" type="tel" placeholder="(416) 555-0123" value="${escapeHtml(x.phone)}" />
+              </div>
+              <div class="field">
+                <div class="field-label">Address</div>
+                <input class="field-input" id="contactAddressInput" placeholder="123 Main St, Toronto, ON" value="${escapeHtml(x.address)}" />
+              </div>
+              <div class="field">
+                <div class="field-label">Business number / HST</div>
+                <input class="field-input" id="contactBizInput" placeholder="123456789RT0001" value="${escapeHtml(x.businessNumber)}" />
+              </div>
+            </div>
+          ` : ''}
+
+          <button class="cta" style="margin-top: 12px;" onclick="submitContactName()">Continue →</button>
+
+          ${hasRecent ? `
+            <div class="section-label">Recent</div>
+            ${CONTACTS.map(c => `
+              <button class="contact-card" onclick="selectContact('${escapeHtml(c.name)}')">
+                <div class="avatar">${c.initials}</div>
+                <div style="flex: 1;">
+                  <div class="contact-name">${escapeHtml(c.name)}</div>
+                  <div class="contact-email">${escapeHtml(c.email)}</div>
+                </div>
+              </button>
+            `).join('')}
+          ` : ''}
         </div>
       `;
     }
@@ -700,9 +905,15 @@
           <div class="eyebrow">${escapeHtml(state.contact)}</div>
           <h2 class="headline">Where and<br>when?</h2>
           <div class="field">
-            <div class="field-label">Job site</div>
-            <input class="field-input" id="jobSiteInput" placeholder="e.g. 142 Maple St" value="${escapeHtml(state.jobSite)}" />
+            <div class="field-label">Location</div>
+            <input class="field-input" id="jobSiteInput" placeholder="Job site, address, project name…" value="${escapeHtml(state.jobSite)}" />
           </div>
+          ${state.type === 'piecework' ? `
+            <div class="field">
+              <div class="field-label">Service date</div>
+              <input class="field-input" type="date" id="serviceDateInput" value="${escapeHtml(state.serviceDate)}" />
+            </div>
+          ` : ''}
           <div class="field">
             <div class="field-label">Due date</div>
             <input class="field-input" type="date" id="dueDateInput" value="${escapeHtml(state.dueDate)}" />
@@ -712,6 +923,11 @@
     }
 
     function renderStep4() {
+      if (state.type === 'timesheet') return renderStep4Hourly();
+      return renderStep4Piecework();
+    }
+
+    function renderStep4Piecework() {
       const cat = categoryById(state.category);
       const t = calculateTotals();
       const presetNames = Object.keys(cat.presets);
@@ -742,12 +958,12 @@
             <button class="chip custom" style="width: 100%; margin-bottom: 24px;" onclick="openCustomItem()">+ Add custom item</button>
           `}
           ${state.lineItems.length > 0
-            ? `<div class="section-label">Added (${state.lineItems.length})</div>
+            ? `<div class="section-label">Added (${state.lineItems.length}) · tap to edit</div>
                ${state.lineItems.map(item => `
-                 <div class="line-item">
+                 <div class="line-item" onclick="openEditLineItem(${item.id})" style="cursor: pointer;">
                    <div class="line-item-row">
                      <div class="line-item-desc">${escapeHtml(item.description)}</div>
-                     <button class="line-item-remove" onclick="removeLineItem(${item.id})" aria-label="Remove">×</button>
+                     <button class="line-item-remove" onclick="event.stopPropagation(); removeLineItem(${item.id})" aria-label="Remove">×</button>
                    </div>
                    <div class="line-item-row">
                      <div class="line-item-meta">${item.qty} ${escapeHtml(item.unit)} × ${fmt(item.price)}</div>
@@ -761,6 +977,53 @@
       `;
     }
 
+    function renderStep4Hourly() {
+      const cat = categoryById(state.category);
+      const t = calculateTotals();
+      const canContinue = state.timeEntries.length > 0 && state.hourlyRate > 0;
+
+      $('footer').classList.remove('hidden');
+      $('footer').innerHTML = `
+        ${state.timeEntries.length > 0 ? `
+          <div class="footer-subtotal">
+            <span>${formatHM(t.totalMinutes)} · ${state.timeEntries.length} day${state.timeEntries.length > 1 ? 's' : ''}</span>
+            <strong id="hourlySubtotal">${fmt(t.subtotal)}</strong>
+          </div>
+        ` : ''}
+        <button class="cta" id="hourlyCta" ${canContinue ? '' : 'disabled'} onclick="setStep(5)">Review invoice →</button>
+      `;
+
+      return `
+        <div class="step${state.direction === 'back' ? ' back' : ''}">
+          <div class="eyebrow">${cat.title.toUpperCase()} · ${escapeHtml(state.contact)}</div>
+          <h2 class="headline">How many<br>hours?</h2>
+          <div class="field">
+            <div class="field-label">Hourly rate (CAD)</div>
+            <input class="field-input" type="number" min="0" step="0.01" placeholder="e.g. 45.00"
+              value="${state.hourlyRate || ''}"
+              oninput="setHourlyRate(this.value)" />
+          </div>
+          <div class="section-label">Days worked</div>
+          ${state.timeEntries.length > 0
+            ? state.timeEntries.map(e => `
+                <div class="line-item" onclick="openTimeEntry(${e.id})" style="cursor: pointer;">
+                  <div class="line-item-row">
+                    <div class="line-item-desc">${escapeHtml(e.date)}</div>
+                    <button class="line-item-remove" onclick="event.stopPropagation(); removeTimeEntry(${e.id})" aria-label="Remove">×</button>
+                  </div>
+                  <div class="line-item-row">
+                    <div class="line-item-meta">${escapeHtml(e.start)} – ${escapeHtml(e.end)}${e.breakMinutes ? ' · break ' + e.breakMinutes + 'm' : ''}</div>
+                    <div class="line-item-amount">${formatHM(e.totalMinutes)}</div>
+                  </div>
+                </div>
+              `).join('')
+            : `<div class="empty">No days yet. Tap below to add one.</div>`
+          }
+          <button class="chip custom" style="width: 100%; margin-top: 12px;" onclick="openTimeEntry()">+ Add day</button>
+        </div>
+      `;
+    }
+
     function renderStep5() {
       const cat = categoryById(state.category);
       const t = calculateTotals();
@@ -769,6 +1032,32 @@
         <button class="cta" style="margin-bottom: 10px; background: var(--ip-ink-50); color: var(--ip-ink-900);" onclick="downloadInvoicePdf()">Download PDF</button>
         <button class="cta send" onclick="state.view='sent'; render();">Send invoice</button>
       `;
+
+      const isHourly = state.type === 'timesheet';
+      const itemsBlock = isHourly
+        ? `<div class="review-block">
+             <div class="review-label" style="margin-bottom: 12px;">Hours · ${state.hourlyRate ? fmt(state.hourlyRate) + '/hr' : '—'}</div>
+             ${state.timeEntries.map(e => `
+               <div class="review-items-row">
+                 <span>${escapeHtml(e.date)} · ${formatHM(e.totalMinutes)}</span>
+                 <span class="amt">${fmt((e.totalMinutes / 60) * state.hourlyRate)}</span>
+               </div>
+             `).join('')}
+             <div class="review-items-row" style="font-weight: 600;">
+               <span>Total · ${formatHM(t.totalMinutes)}</span>
+               <span class="amt">${fmt(t.subtotal)}</span>
+             </div>
+           </div>`
+        : `<div class="review-block">
+             <div class="review-label" style="margin-bottom: 12px;">Line items</div>
+             ${state.lineItems.map(item => `
+               <div class="review-items-row">
+                 <span>${escapeHtml(item.description)}</span>
+                 <span class="amt">${fmt(item.qty * item.price)}</span>
+               </div>
+             `).join('')}
+           </div>`;
+
       return `
         <div class="step${state.direction === 'back' ? ' back' : ''}">
           <div class="eyebrow">REVIEW · ${cat.title.toUpperCase()}</div>
@@ -776,35 +1065,46 @@
           <div class="review-block">
             <div class="review-label">To</div>
             <div class="review-value">${escapeHtml(state.contact)}</div>
+            ${state.contactExtras.address ? `<div class="review-value" style="font-size: 13px; color: var(--ip-ink-600); font-weight: 400; margin-top: 4px;">${escapeHtml(state.contactExtras.address)}</div>` : ''}
+            ${state.contactExtras.email ? `<div class="review-value" style="font-size: 13px; color: var(--ip-ink-600); font-weight: 400; margin-top: 2px;">${escapeHtml(state.contactExtras.email)}</div>` : ''}
+            ${state.contactExtras.phone ? `<div class="review-value" style="font-size: 13px; color: var(--ip-ink-600); font-weight: 400; margin-top: 2px;">${escapeHtml(state.contactExtras.phone)}</div>` : ''}
+            ${state.contactExtras.businessNumber ? `<div class="review-value" style="font-size: 13px; color: var(--ip-ink-600); font-weight: 400; margin-top: 2px;">Business# ${escapeHtml(state.contactExtras.businessNumber)}</div>` : ''}
           </div>
           <div class="review-grid">
             <div class="review-block" style="margin: 0;">
-              <div class="review-label">Job site</div>
+              <div class="review-label">Location</div>
               <div class="review-value">${escapeHtml(state.jobSite) || '—'}</div>
             </div>
             <div class="review-block" style="margin: 0;">
               <div class="review-label">Due</div>
               <div class="review-value">${escapeHtml(state.dueDate) || '—'}</div>
             </div>
-          </div>
-          <div class="review-block">
-            <div class="review-label" style="margin-bottom: 12px;">Line items</div>
-            ${state.lineItems.map(item => `
-              <div class="review-items-row">
-                <span>${escapeHtml(item.description)}</span>
-                <span class="amt">${fmt(item.qty * item.price)}</span>
+            ${state.type === 'piecework' ? `
+              <div class="review-block" style="margin: 0;">
+                <div class="review-label">Service date</div>
+                <div class="review-value">${escapeHtml(state.serviceDate) || '—'}</div>
               </div>
-            `).join('')}
+            ` : ''}
           </div>
-          <div class="totals">
+          ${itemsBlock}
+          <div class="toggle-row" onclick="toggleHst()" style="cursor: pointer;">
+            <div>
+              <div class="toggle-label">Charge HST</div>
+              <div class="toggle-sub">${state.applyHst ? '13% added to subtotal' : 'No tax applied'}</div>
+            </div>
+            <div class="toggle-switch ${state.applyHst ? 'on' : ''}" role="switch" aria-checked="${state.applyHst}"></div>
+          </div>
+          <div class="totals" style="border-top: none; padding-top: 8px;">
             <div class="totals-row">
               <span class="totals-label">Subtotal</span>
               <span class="totals-value">${fmt(t.subtotal)}</span>
             </div>
-            <div class="totals-row">
-              <span class="totals-label">HST (13%)</span>
-              <span class="totals-value">${fmt(t.hst)}</span>
-            </div>
+            ${state.applyHst ? `
+              <div class="totals-row">
+                <span class="totals-label">HST (13%)</span>
+                <span class="totals-value">${fmt(t.hst)}</span>
+              </div>
+            ` : ''}
             <div class="totals-row grand">
               <span>Total</span>
               <span>${fmt(t.total)}</span>
@@ -829,28 +1129,73 @@
     function renderModal() {
       const root = $('modalRoot');
       if (state.modal === 'custom-item') {
+        const editing = state.editingLineItem;
+        const isEdit = !!(editing && editing.id != null);
+        const desc = isEdit ? editing.description : '';
+        const qty = isEdit ? editing.qty : '';
+        const price = isEdit ? editing.price : '';
+        const unit = isEdit ? editing.unit : '';
         root.innerHTML = `
           <div class="modal-bg" onclick="if(event.target===this) closeModal()">
             <div class="modal">
-              <div class="modal-title">Custom item</div>
+              <div class="modal-title">${isEdit ? 'Edit item' : 'Custom item'}</div>
               <div style="margin-bottom: 14px;">
-                <input class="field-input" id="customDesc" placeholder="Description" autofocus />
+                <div class="field-label">Description</div>
+                <input class="field-input" id="customDesc" placeholder="Description" value="${escapeHtml(desc)}" autofocus />
               </div>
               <div class="modal-row">
-                <input class="field-input" id="customQty" type="number" placeholder="Qty" value="1" />
-                <input class="field-input" id="customPrice" type="number" placeholder="Price" step="0.01" />
+                <div>
+                  <div class="field-label">Qty</div>
+                  <input class="field-input" id="customQty" type="number" step="0.01" placeholder="Qty" value="${escapeHtml(String(qty))}" />
+                </div>
+                <div>
+                  <div class="field-label">Price</div>
+                  <input class="field-input" id="customPrice" type="number" placeholder="Price" step="0.01" value="${escapeHtml(String(price))}" />
+                </div>
               </div>
               <div style="margin-bottom: 14px;">
-                <input class="field-input" id="customUnit" placeholder="Unit (hr, sq ft, job…)" />
+                <div class="field-label">Unit</div>
+                <input class="field-input" id="customUnit" placeholder="hr, sq ft, job…" value="${escapeHtml(unit)}" />
               </div>
               <div class="modal-actions">
                 <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-                <button class="btn-primary" onclick="saveCustomItem()">Add item</button>
+                <button class="btn-primary" onclick="saveCustomItem()">${isEdit ? 'Save' : 'Add item'}</button>
               </div>
             </div>
           </div>
         `;
-        setTimeout(() => $('customDesc')?.focus(), 100);
+        if (!isEdit) setTimeout(() => $('customDesc')?.focus(), 100);
+      } else if (state.modal === 'time-entry') {
+        const e = state.editingEntry || {};
+        root.innerHTML = `
+          <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+            <div class="modal">
+              <div class="modal-title">${e.id != null ? 'Edit day' : 'Add day'}</div>
+              <div style="margin-bottom: 14px;">
+                <div class="field-label">Date</div>
+                <input class="field-input" id="teDate" type="date" value="${escapeHtml(e.date || '')}" autofocus />
+              </div>
+              <div class="modal-row">
+                <div>
+                  <div class="field-label">Start</div>
+                  <input class="field-input" id="teStart" type="time" value="${escapeHtml(e.start || '08:00')}" />
+                </div>
+                <div>
+                  <div class="field-label">End</div>
+                  <input class="field-input" id="teEnd" type="time" value="${escapeHtml(e.end || '17:00')}" />
+                </div>
+              </div>
+              <div style="margin-bottom: 14px;">
+                <div class="field-label">Break (minutes)</div>
+                <input class="field-input" id="teBreak" type="number" min="0" step="5" value="${e.breakMinutes ?? 30}" />
+              </div>
+              <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveTimeEntry()">${e.id != null ? 'Save' : 'Add day'}</button>
+              </div>
+            </div>
+          </div>
+        `;
       } else {
         root.innerHTML = '';
       }
@@ -864,6 +1209,14 @@
       return String(s ?? '').replace(/[&<>"']/g, c => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'
       }[c]));
+    }
+
+    // Format aligned with onsite-timekeeper/src/lib/invoiceXmp.ts:
+    // up to 2 decimals, trailing zeros trimmed. "0" instead of "0.00".
+    function formatHoursForXmp(n) {
+      if (!Number.isFinite(n)) return '0';
+      const s = n.toFixed(2);
+      return s.replace(/\.?0+$/, '') || '0';
     }
 
     function buildXmpPacket(data) {
@@ -880,7 +1233,7 @@
         ['issuer_name',       data.issuer_name],
         ['company_name',      data.company_name],
         ['company_hst_number',data.company_hst_number],
-        ['hours_logged',      data.hours_logged],
+        ['hours_logged',      formatHoursForXmp(data.hours_logged)],
         ['issued_at',         data.issued_at],
         ['timekeeper_version',data.timekeeper_version],
       ];
@@ -901,12 +1254,31 @@ ${body}
 
     function buildInvoicePayload() {
       const t = calculateTotals();
-      const today = new Date();
-      const iso = today.toISOString().slice(0, 10);
-      const hours = state.type === 'timesheet'
-        ? state.lineItems.reduce((s, i) => s + (i.unit === 'hr' ? i.qty : 0), 0)
-        : 0;
+      const isHourly = state.type === 'timesheet';
+      // Full ISO 8601 UTC timestamp, aligned with timekeeper format.
+      const issuedAt = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
       const cat = categoryById(state.category);
+
+      const hoursLogged = isHourly ? decimalHours(t.totalMinutes) : 0;
+
+      // Sorted time entries with computed amount per day (hourly rate × hours)
+      const timeRows = isHourly
+        ? [...state.timeEntries]
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .map(e => ({
+              date: e.date,
+              start: e.start,
+              end: e.end,
+              breakMinutes: e.breakMinutes,
+              totalMinutes: e.totalMinutes,
+              hoursLabel: formatHM(e.totalMinutes),
+              amount: Math.round((e.totalMinutes / 60) * state.hourlyRate * 100) / 100,
+            }))
+        : [];
+
+      const periodStart = isHourly && timeRows.length ? timeRows[0].date : '';
+      const periodEnd = isHourly && timeRows.length ? timeRows[timeRows.length - 1].date : '';
+
       return {
         invoice_number: 'INV-0001', // Day 2 will make this incremental
         amount: t.subtotal,
@@ -914,24 +1286,37 @@ ${body}
         total: t.total,
         currency: 'CAD',
         gc_name: state.contact || '',
+        gc_email: state.contactExtras.email || '',
+        gc_phone: state.contactExtras.phone || '',
+        gc_address: state.contactExtras.address || '',
+        gc_business_number: state.contactExtras.businessNumber || '',
         site_address: state.jobSite || '',
         issuer_email: PROFILE.issuer_email,
         issuer_name: PROFILE.issuer_name,
         company_name: PROFILE.company_name,
         company_hst_number: PROFILE.company_hst_number || '',
-        hours_logged: hours ? String(hours) : '',
-        issued_at: iso,
+        hours_logged: hoursLogged, // decimal number, e.g. 38.25
+        issued_at: issuedAt,       // ISO 8601 UTC, e.g. "2026-05-11T14:23:00Z"
+        service_date: !isHourly ? (state.serviceDate || '') : '',
         due_at: state.dueDate || '',
         timekeeper_version: MAKE_VERSION,
         category_title: cat ? cat.title : '',
         type: state.type || '',
-        line_items: state.lineItems.map(i => ({
-          description: i.description,
-          qty: i.qty,
-          price: i.price,
-          unit: i.unit,
-          amount: i.qty * i.price,
-        })),
+        // Piecework rows (empty when timesheet)
+        line_items: !isHourly
+          ? state.lineItems.map(i => ({
+              description: i.description,
+              qty: i.qty,
+              price: i.price,
+              unit: i.unit,
+              amount: i.qty * i.price,
+            }))
+          : [],
+        // Timesheet rows (empty when piecework)
+        time_rows: timeRows,
+        hourly_rate: isHourly ? state.hourlyRate : 0,
+        period_start: periodStart,
+        period_end: periodEnd,
       };
     }
 
@@ -964,51 +1349,122 @@ ${body}
       });
 
       y -= 50;
+      const blockTop = y;
       page.drawText('FROM', { x: 48, y, size: 9, font: helvBold, color: ink400 });
       page.drawText('BILL TO', { x: 312, y, size: 9, font: helvBold, color: ink400 });
-      y -= 16;
-      page.drawText(payload.company_name || payload.issuer_name, { x: 48, y, size: 12, font: helvBold, color: ink });
-      page.drawText(payload.gc_name, { x: 312, y, size: 12, font: helvBold, color: ink });
-      y -= 14;
-      page.drawText(payload.issuer_name, { x: 48, y, size: 10, font: helv, color: ink600 });
-      y -= 12;
-      page.drawText(payload.issuer_email, { x: 48, y, size: 10, font: helv, color: ink600 });
+
+      // FROM block (left column)
+      let yLeft = blockTop - 16;
+      page.drawText(payload.company_name || payload.issuer_name, { x: 48, y: yLeft, size: 12, font: helvBold, color: ink });
+      yLeft -= 14;
+      page.drawText(payload.issuer_name, { x: 48, y: yLeft, size: 10, font: helv, color: ink600 });
+      yLeft -= 12;
+      page.drawText(payload.issuer_email, { x: 48, y: yLeft, size: 10, font: helv, color: ink600 });
       if (payload.company_hst_number) {
-        y -= 12;
-        page.drawText('HST# ' + payload.company_hst_number, { x: 48, y, size: 10, font: helv, color: ink600 });
+        yLeft -= 12;
+        page.drawText('HST# ' + payload.company_hst_number, { x: 48, y: yLeft, size: 10, font: helv, color: ink600 });
       }
 
+      // BILL TO block (right column) — name plus any optional extras
+      let yRight = blockTop - 16;
+      page.drawText(payload.gc_name, { x: 312, y: yRight, size: 12, font: helvBold, color: ink });
+      if (payload.gc_address) {
+        yRight -= 14;
+        page.drawText(payload.gc_address, { x: 312, y: yRight, size: 10, font: helv, color: ink600 });
+      }
+      if (payload.gc_email) {
+        yRight -= 12;
+        page.drawText(payload.gc_email, { x: 312, y: yRight, size: 10, font: helv, color: ink600 });
+      }
+      if (payload.gc_phone) {
+        yRight -= 12;
+        page.drawText(payload.gc_phone, { x: 312, y: yRight, size: 10, font: helv, color: ink600 });
+      }
+      if (payload.gc_business_number) {
+        yRight -= 12;
+        page.drawText('Business# ' + payload.gc_business_number, { x: 312, y: yRight, size: 10, font: helv, color: ink600 });
+      }
+
+      y = Math.min(yLeft, yRight);
+
       y -= 36;
-      page.drawText('JOB SITE', { x: 48, y, size: 9, font: helvBold, color: ink400 });
-      page.drawText('ISSUED', { x: 312, y, size: 9, font: helvBold, color: ink400 });
+      const showPeriod = payload.type === 'timesheet' && payload.period_start;
+      // Middle column: SERVICE DATE for piecework, ISSUED for timesheet
+      const middleLabel = showPeriod ? 'ISSUED' : 'SERVICE DATE';
+      const middleValue = showPeriod
+        ? payload.issued_at.slice(0, 10)
+        : (payload.service_date || payload.issued_at.slice(0, 10));
+      page.drawText(showPeriod ? 'PERIOD' : 'LOCATION', { x: 48, y, size: 9, font: helvBold, color: ink400 });
+      page.drawText(middleLabel, { x: 312, y, size: 9, font: helvBold, color: ink400 });
       page.drawText('DUE', { x: 462, y, size: 9, font: helvBold, color: ink400 });
       y -= 16;
-      page.drawText(payload.site_address || '—', { x: 48, y, size: 11, font: helv, color: ink });
-      page.drawText(payload.issued_at, { x: 312, y, size: 11, font: helv, color: ink });
+      const leftValue = showPeriod
+        ? (payload.period_start === payload.period_end
+            ? payload.period_start
+            : payload.period_start + ' → ' + payload.period_end)
+        : (payload.site_address || '—');
+      page.drawText(leftValue, { x: 48, y, size: 11, font: helv, color: ink });
+      page.drawText(middleValue, { x: 312, y, size: 11, font: helv, color: ink });
       page.drawText(payload.due_at || '—', { x: 462, y, size: 11, font: helv, color: ink });
 
       y -= 36;
       page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: border });
       y -= 16;
-      page.drawText('DESCRIPTION', { x: 48, y, size: 9, font: helvBold, color: ink400 });
-      page.drawText('QTY × PRICE', { x: 360, y, size: 9, font: helvBold, color: ink400 });
-      page.drawText('AMOUNT', {
-        x: 564 - helvBold.widthOfTextAtSize('AMOUNT', 9), y,
-        size: 9, font: helvBold, color: ink400,
-      });
-      y -= 8;
-      page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: border });
 
-      for (const item of payload.line_items) {
-        y -= 22;
-        page.drawText(item.description, { x: 48, y, size: 11, font: helv, color: ink });
-        const meta = `${item.qty} ${item.unit} × ${fmt(item.price)}`;
-        page.drawText(meta, { x: 360, y, size: 10, font: helv, color: ink600 });
-        const amt = fmt(item.amount);
-        page.drawText(amt, {
-          x: 564 - helv.widthOfTextAtSize(amt, 11), y,
-          size: 11, font: helvBold, color: ink,
+      const isHourly = payload.type === 'timesheet';
+      if (isHourly) {
+        // Header: Date | Start | End | Break | Hours | Amount
+        page.drawText('DATE', { x: 48, y, size: 9, font: helvBold, color: ink400 });
+        page.drawText('START', { x: 200, y, size: 9, font: helvBold, color: ink400 });
+        page.drawText('END', { x: 260, y, size: 9, font: helvBold, color: ink400 });
+        page.drawText('BREAK', { x: 320, y, size: 9, font: helvBold, color: ink400 });
+        page.drawText('HOURS', { x: 400, y, size: 9, font: helvBold, color: ink400 });
+        page.drawText('AMOUNT', {
+          x: 564 - helvBold.widthOfTextAtSize('AMOUNT', 9), y,
+          size: 9, font: helvBold, color: ink400,
         });
+        y -= 8;
+        page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: border });
+
+        for (const row of payload.time_rows) {
+          y -= 22;
+          page.drawText(row.date, { x: 48, y, size: 11, font: helv, color: ink });
+          page.drawText(row.start, { x: 200, y, size: 10, font: helv, color: ink600 });
+          page.drawText(row.end, { x: 260, y, size: 10, font: helv, color: ink600 });
+          page.drawText(row.breakMinutes ? row.breakMinutes + 'm' : '—', { x: 320, y, size: 10, font: helv, color: ink600 });
+          page.drawText(row.hoursLabel, { x: 400, y, size: 10, font: helvBold, color: ink });
+          const amt = fmt(row.amount);
+          page.drawText(amt, {
+            x: 564 - helv.widthOfTextAtSize(amt, 11), y,
+            size: 11, font: helvBold, color: ink,
+          });
+        }
+
+        // Rate summary line
+        y -= 22;
+        const rateLine = `${payload.time_rows.length} day${payload.time_rows.length !== 1 ? 's' : ''} × ${fmt(payload.hourly_rate)}/hr`;
+        page.drawText(rateLine, { x: 48, y, size: 10, font: helv, color: ink400 });
+      } else {
+        page.drawText('DESCRIPTION', { x: 48, y, size: 9, font: helvBold, color: ink400 });
+        page.drawText('QTY × PRICE', { x: 360, y, size: 9, font: helvBold, color: ink400 });
+        page.drawText('AMOUNT', {
+          x: 564 - helvBold.widthOfTextAtSize('AMOUNT', 9), y,
+          size: 9, font: helvBold, color: ink400,
+        });
+        y -= 8;
+        page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: border });
+
+        for (const item of payload.line_items) {
+          y -= 22;
+          page.drawText(item.description, { x: 48, y, size: 11, font: helv, color: ink });
+          const meta = `${item.qty} ${item.unit} × ${fmt(item.price)}`;
+          page.drawText(meta, { x: 360, y, size: 10, font: helv, color: ink600 });
+          const amt = fmt(item.amount);
+          page.drawText(amt, {
+            x: 564 - helv.widthOfTextAtSize(amt, 11), y,
+            size: 11, font: helvBold, color: ink,
+          });
+        }
       }
 
       y -= 24;
@@ -1020,10 +1476,12 @@ ${body}
       page.drawText('Subtotal', { x: labelCol, y, size: 11, font: helv, color: ink600 });
       const sub = fmt(payload.amount);
       page.drawText(sub, { x: rightCol - helv.widthOfTextAtSize(sub, 11), y, size: 11, font: helvBold, color: ink });
-      y -= 18;
-      page.drawText('HST (13%)', { x: labelCol, y, size: 11, font: helv, color: ink600 });
-      const hst = fmt(payload.hst);
-      page.drawText(hst, { x: rightCol - helv.widthOfTextAtSize(hst, 11), y, size: 11, font: helvBold, color: ink });
+      if (payload.hst > 0) {
+        y -= 18;
+        page.drawText('HST (13%)', { x: labelCol, y, size: 11, font: helv, color: ink600 });
+        const hst = fmt(payload.hst);
+        page.drawText(hst, { x: rightCol - helv.widthOfTextAtSize(hst, 11), y, size: 11, font: helvBold, color: ink });
+      }
       y -= 24;
       page.drawLine({ start: { x: labelCol, y: y + 14 }, end: { x: rightCol, y: y + 14 }, thickness: 1, color: border });
       page.drawText('Total', { x: labelCol, y, size: 16, font: helvBold, color: ink });
