@@ -566,10 +566,10 @@
     // InvoicePass. Email path goes through a same-origin Vercel function.
     const PORTAL_BASE_URL = 'https://portal.invoicepass.app';
     const SEND_EMAIL_URL = '/api/send-email';
-    // Cloudflare Turnstile site key. The test key below always passes —
-    // replace with the real one before publishing to production.
-    // (https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
-    const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+    // Cloudflare Turnstile site key (public — safe to inline in HTML).
+    // Tied to the hostnames registered in the Cloudflare Turnstile widget
+    // (make.invoicepass.app + portal.invoicepass.app).
+    const TURNSTILE_SITE_KEY = '0x4AAAAAAO1Z1EK1RV7huBC';
 
     function $(id) { return document.getElementById(id); }
 

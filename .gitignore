@@ -1,0 +1,14 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Local Claude Code overrides
+.claude/settings.local.json
+
+# Vercel
+.vercel/
+
+# Editor/OS
+.DS_Store
+Thumbs.db
