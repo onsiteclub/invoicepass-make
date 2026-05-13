@@ -15,6 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23635BFF'/%3E%3Cpath d='M30 36h40v6H30zm0 14h40v6H30zm0 14h26v6H30z' fill='white'/%3E%3Ccircle cx='74' cy='30' r='6' fill='%23F5BE58'/%3E%3C/svg%3E">
 
@@ -390,6 +391,29 @@
     .success-sub { font-size: 16px; color: var(--ip-ink-600); margin-bottom: 36px; line-height: 1.5; }
 
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+    .send-status {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-radius: 12px;
+      font-size: 13px; font-weight: 500;
+      margin-top: 10px; min-height: 40px;
+      transition: all 200ms var(--ease-out);
+    }
+    .send-status.ok { background: #ECFDF5; color: #047857; }
+    .send-status.err { background: #FEF2F2; color: #B91C1C; }
+    .send-status.neutral { background: var(--ip-ink-50); color: var(--ip-ink-400); }
+    .send-status.email { background: var(--ip-brand-50); color: var(--ip-brand-700); }
+    .send-status-icon {
+      width: 18px; height: 18px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 12px; font-weight: 700;
+    }
+    .turnstile-host { margin-top: 12px; display: flex; justify-content: center; min-height: 65px; }
+    .send-error {
+      background: #FEF2F2; color: #B91C1C;
+      padding: 10px 14px; border-radius: 12px;
+      font-size: 13px; margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -514,6 +538,16 @@
       showContactDetails: false,
       applyHst: true,         // toggle on Step 5 — sets HST 13% on/off
       modal: null,
+      // Send modal state
+      send: {
+        recipient: '',         // raw user input
+        kind: 'unknown',       // 'unknown' | 'handle' | 'email'
+        lookup: null,          // { state: 'idle'|'pending'|'ok'|'notfound'|'error', display_name? }
+        turnstileToken: '',
+        turnstileWidget: null, // widget id
+        submitting: false,
+        result: null,          // { ok, kind, display_name?, address?, error? }
+      },
     };
 
     // Profile (placeholder for Day 1 - will be replaced by localStorage onboarding in Day 2)
@@ -526,6 +560,16 @@
 
     const MAKE_VERSION = 'make-1.0';
     const XMP_NAMESPACE = 'http://schemas.onsiteclub.ca/invoice/1.0/';
+
+    // ---- Backend configuration -----------------------------------------
+    // Portal accepts direct submission of PDFs when the recipient is on
+    // InvoicePass. Email path goes through a same-origin Vercel function.
+    const PORTAL_BASE_URL = 'https://portal.invoicepass.app';
+    const SEND_EMAIL_URL = '/api/send-email';
+    // Cloudflare Turnstile site key. The test key below always passes —
+    // replace with the real one before publishing to production.
+    // (https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
+    const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
 
     function $(id) { return document.getElementById(id); }
 
@@ -732,6 +776,233 @@
       render();
     }
 
+    // ============================================================
+    // Send invoice — modal + smart input + submit (handle / email)
+    // ============================================================
+    function openSendInvoice() {
+      const prefill = state.contactExtras.email || '';
+      state.send = {
+        recipient: prefill,
+        kind: classifyRecipient(prefill),
+        lookup: { state: 'idle' },
+        turnstileToken: '',
+        turnstileWidget: null,
+        submitting: false,
+        result: null,
+      };
+      state.modal = 'send-invoice';
+      renderModal();
+      if (state.send.kind === 'handle') triggerHandleLookup(prefill);
+      if (state.send.kind === 'email') updateSendStatus();
+    }
+
+    // Email if it has @ with a TLD. Handle if alphanumeric/dash/underscore.
+    function classifyRecipient(value) {
+      const v = (value || '').trim();
+      if (!v) return 'unknown';
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return 'email';
+      if (/^[a-z0-9_-]{1,40}$/.test(v.toLowerCase())) return 'handle';
+      return 'unknown';
+    }
+
+    let lookupDebounceTimer = null;
+    let lookupAbortCtrl = null;
+
+    function onRecipientChange(value) {
+      state.send.recipient = value;
+      state.send.kind = classifyRecipient(value);
+      state.send.lookup = { state: 'idle' };
+      clearTimeout(lookupDebounceTimer);
+      if (lookupAbortCtrl) { lookupAbortCtrl.abort(); lookupAbortCtrl = null; }
+      if (state.send.kind === 'handle') {
+        state.send.lookup = { state: 'pending' };
+        lookupDebounceTimer = setTimeout(() => triggerHandleLookup(value), 300);
+      }
+      updateSendStatus();
+      updateSendButton();
+    }
+
+    async function triggerHandleLookup(value) {
+      const handle = (value || '').trim().toLowerCase();
+      if (!/^[a-z0-9_-]{1,40}$/.test(handle)) return;
+      lookupAbortCtrl = new AbortController();
+      try {
+        const res = await fetch(
+          PORTAL_BASE_URL + '/api/public-lookup?handle=' + encodeURIComponent(handle),
+          { signal: lookupAbortCtrl.signal }
+        );
+        if (!res.ok) throw new Error('lookup ' + res.status);
+        const data = await res.json();
+        if (data.exists) {
+          state.send.lookup = { state: 'ok', display_name: data.display_name || handle };
+        } else {
+          state.send.lookup = { state: 'notfound' };
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('[send] lookup failed', err);
+        state.send.lookup = { state: 'error' };
+      }
+      updateSendStatus();
+      updateSendButton();
+    }
+
+    function updateSendStatus() {
+      const el = document.getElementById('sendStatus');
+      if (!el) return;
+      const s = state.send;
+      let cls = 'send-status neutral';
+      let html = 'Type a handle (e.g. <strong>paulo</strong>) or an email address.';
+      if (s.kind === 'handle') {
+        if (s.lookup.state === 'pending') {
+          html = '<span class="send-status-icon" style="background:var(--ip-ink-200); color:white;">…</span> Looking up <strong>' + escapeHtml(s.recipient) + '</strong>';
+        } else if (s.lookup.state === 'ok') {
+          cls = 'send-status ok';
+          html = '<span class="send-status-icon" style="background:#10B981; color:white;">✓</span> ' + escapeHtml(s.lookup.display_name) + ' · InvoicePass user';
+        } else if (s.lookup.state === 'notfound') {
+          cls = 'send-status err';
+          html = '<span class="send-status-icon" style="background:#EF4444; color:white;">✗</span> Handle <strong>' + escapeHtml(s.recipient) + '</strong> not found';
+        } else if (s.lookup.state === 'error') {
+          cls = 'send-status err';
+          html = '<span class="send-status-icon" style="background:#EF4444; color:white;">!</span> Could not reach portal. Try again.';
+        }
+      } else if (s.kind === 'email') {
+        cls = 'send-status email';
+        html = '<span class="send-status-icon" style="background:var(--ip-brand-600); color:white;">✉</span> Will be sent by email to <strong>' + escapeHtml(s.recipient) + '</strong>';
+      }
+      el.className = cls;
+      el.innerHTML = html;
+    }
+
+    function canSubmitSend() {
+      const s = state.send;
+      if (s.submitting) return false;
+      if (!s.turnstileToken) return false;
+      if (s.kind === 'handle') return s.lookup.state === 'ok';
+      if (s.kind === 'email') return true;
+      return false;
+    }
+    function updateSendButton() {
+      const btn = document.getElementById('sendSubmitBtn');
+      if (btn) btn.disabled = !canSubmitSend();
+    }
+
+    function onTurnstileSuccess(token) {
+      state.send.turnstileToken = token;
+      updateSendButton();
+    }
+    function onTurnstileExpired() {
+      state.send.turnstileToken = '';
+      updateSendButton();
+    }
+
+    async function submitSend() {
+      if (!canSubmitSend()) return;
+      state.send.submitting = true;
+      updateSendButton();
+      const errBox = document.getElementById('sendError');
+      if (errBox) errBox.textContent = '';
+
+      try {
+        // Generate the PDF (same code path as Download PDF)
+        const payload = buildInvoicePayload();
+        const pdfBytes = await generateInvoicePdf(payload);
+        const pdfBase64 = bytesToBase64(pdfBytes);
+
+        if (state.send.kind === 'handle') {
+          await submitToPortal(payload, pdfBase64);
+        } else {
+          await submitByEmail(payload, pdfBase64);
+        }
+        // Success — close modal, advance to Sent view
+        state.modal = null;
+        state.view = 'sent';
+        render();
+      } catch (err) {
+        console.error('[send] failed', err);
+        state.send.submitting = false;
+        if (errBox) errBox.textContent = err.message || 'Failed to send. Try again.';
+        // Force Turnstile widget to issue a new token (each token is single-use)
+        if (window.turnstile && state.send.turnstileWidget != null) {
+          window.turnstile.reset(state.send.turnstileWidget);
+          state.send.turnstileToken = '';
+        }
+        updateSendButton();
+      }
+    }
+
+    async function submitToPortal(payload, pdfBase64) {
+      const res = await fetch(PORTAL_BASE_URL + '/api/public-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          handle: state.send.recipient.trim().toLowerCase(),
+          pdf_base64: pdfBase64,
+          turnstile_token: state.send.turnstileToken,
+          sender_email: payload.issuer_email,
+          sender_name: payload.issuer_name,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(humanizePortalError(data.error || ('HTTP ' + res.status)));
+      }
+      state.send.result = {
+        ok: true,
+        kind: 'handle',
+        display_name: state.send.lookup.display_name,
+        invoice_id: data.invoice_id,
+        status: data.status,
+      };
+    }
+
+    async function submitByEmail(payload, pdfBase64) {
+      const res = await fetch(SEND_EMAIL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to_email: state.send.recipient.trim(),
+          pdf_base64: pdfBase64,
+          turnstile_token: state.send.turnstileToken,
+          invoice_number: payload.invoice_number,
+          total: payload.total,
+          sender_email: payload.issuer_email,
+          sender_name: payload.issuer_name,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || ('Email send failed: HTTP ' + res.status));
+      }
+      state.send.result = {
+        ok: true,
+        kind: 'email',
+        address: state.send.recipient.trim(),
+      };
+    }
+
+    function humanizePortalError(code) {
+      const map = {
+        invalid_payload:   'The invoice data was rejected by the portal.',
+        handle_not_found:  'That InvoicePass user no longer exists.',
+        quota_exceeded:    'The recipient has reached their monthly quota.',
+        invalid_pdf:       'The generated PDF was rejected.',
+        turnstile_failed:  'Captcha verification failed. Please try again.',
+        rate_limited:      'Too many submissions from this device. Wait a bit and retry.',
+      };
+      return map[code] || code;
+    }
+
+    // Reuse the chunked base64 encoder pattern from timekeeper's invoiceXmp.ts
+    function bytesToBase64(bytes) {
+      let binary = '';
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + CHUNK, bytes.length)));
+      }
+      return btoa(binary);
+    }
+
     function resetFlow() {
       state.view = 'hub';
       state.step = 1;
@@ -750,6 +1021,10 @@
       state.showContactDetails = false;
       state.applyHst = true;
       state.modal = null;
+      state.send = {
+        recipient: '', kind: 'unknown', lookup: { state: 'idle' },
+        turnstileToken: '', turnstileWidget: null, submitting: false, result: null,
+      };
       render();
     }
 
@@ -1030,7 +1305,7 @@
       $('footer').classList.remove('hidden');
       $('footer').innerHTML = `
         <button class="cta" style="margin-bottom: 10px; background: var(--ip-ink-50); color: var(--ip-ink-900);" onclick="downloadInvoicePdf()">Download PDF</button>
-        <button class="cta send" onclick="state.view='sent'; render();">Send invoice</button>
+        <button class="cta send" onclick="openSendInvoice()">Send invoice</button>
       `;
 
       const isHourly = state.type === 'timesheet';
@@ -1116,11 +1391,20 @@
 
     function renderSent() {
       $('footer').classList.add('hidden');
+      const r = state.send && state.send.result;
+      let sub;
+      if (r && r.kind === 'handle') {
+        sub = `${escapeHtml(r.display_name || state.contact)} will see it in their InvoicePass inbox.`;
+      } else if (r && r.kind === 'email') {
+        sub = `Email delivered to <strong>${escapeHtml(r.address)}</strong>.<br>They'll see the invoice as a PDF attachment.`;
+      } else {
+        sub = `${escapeHtml(state.contact || 'The recipient')} will get notified.`;
+      }
       return `
         <div class="success">
           <div class="success-icon">${ICONS.check}</div>
           <h2 class="success-title">Invoice sent</h2>
-          <p class="success-sub">${escapeHtml(state.contact)} will get notified.<br>You'll see updates here.</p>
+          <p class="success-sub">${sub}</p>
           <button class="cta" style="max-width: 240px;" onclick="resetFlow()">Make another</button>
         </div>
       `;
@@ -1165,6 +1449,62 @@
           </div>
         `;
         if (!isEdit) setTimeout(() => $('customDesc')?.focus(), 100);
+      } else if (state.modal === 'send-invoice') {
+        const s = state.send;
+        root.innerHTML = `
+          <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+            <div class="modal">
+              <div class="modal-title">Send invoice</div>
+              <div style="margin-bottom: 6px;">
+                <div class="field-label">To</div>
+                <input class="field-input" id="sendRecipient" placeholder="handle or name@example.com"
+                  autofocus
+                  value="${escapeHtml(s.recipient)}"
+                  oninput="onRecipientChange(this.value)"
+                  autocomplete="off" autocapitalize="off" spellcheck="false" />
+              </div>
+              <div id="sendStatus" class="send-status neutral">Type a handle (e.g. <strong>paulo</strong>) or an email address.</div>
+
+              <div class="turnstile-host" id="turnstileHost"></div>
+
+              <div id="sendError" class="send-error" style="display:${'' /* visible only on error */}none;"></div>
+
+              <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" id="sendSubmitBtn" disabled onclick="submitSend()">Send →</button>
+              </div>
+            </div>
+          </div>
+        `;
+        // Show error element only when populated
+        const errEl = document.getElementById('sendError');
+        const origText = errEl ? errEl.textContent : '';
+        if (errEl) {
+          const observer = new MutationObserver(() => {
+            errEl.style.display = errEl.textContent.trim() ? 'block' : 'none';
+          });
+          observer.observe(errEl, { childList: true, characterData: true, subtree: true });
+        }
+        // Render Turnstile widget (script may load async — poll briefly)
+        const renderTurnstile = () => {
+          if (!window.turnstile) {
+            setTimeout(renderTurnstile, 100);
+            return;
+          }
+          const host = document.getElementById('turnstileHost');
+          if (!host) return;
+          state.send.turnstileWidget = window.turnstile.render(host, {
+            sitekey: TURNSTILE_SITE_KEY,
+            callback: onTurnstileSuccess,
+            'expired-callback': onTurnstileExpired,
+            'error-callback': onTurnstileExpired,
+            theme: 'light',
+            size: 'flexible',
+          });
+        };
+        renderTurnstile();
+        updateSendStatus();
+        updateSendButton();
       } else if (state.modal === 'time-entry') {
         const e = state.editingEntry || {};
         root.innerHTML = `
