@@ -392,6 +392,120 @@
 
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
+    .cal-card {
+      background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 14px;
+      padding: 10px 10px 8px;
+      margin-top: 8px;
+    }
+    .cal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .cal-title { font-size: 14px; font-weight: 600; color: var(--ip-ink-900); }
+    .cal-nav {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--ip-ink-50); color: var(--ip-ink-900);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 600;
+      transition: background 150ms var(--ease-out);
+    }
+    .cal-nav:hover { background: var(--ip-ink-100); }
+    .cal-grid {
+      display: grid;
+      /* minmax(0, 1fr) prevents content from making cells wider than the column */
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 2px;
+    }
+    .cal-dow {
+      font-size: 9px; font-weight: 700; color: var(--ip-ink-300);
+      text-align: center; padding: 2px 0;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .cal-cell {
+      height: 38px; width: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      border-radius: 6px; background: transparent;
+      color: var(--ip-ink-900);
+      transition: all 120ms var(--ease-out);
+      padding: 0; min-width: 0;
+    }
+    .cal-cell.empty { visibility: hidden; cursor: default; }
+    .cal-cell:hover:not(.empty):not(.selected) { background: var(--ip-ink-50); }
+    .cal-cell.weekend { color: var(--ip-ink-300); }
+    .cal-cell.today { box-shadow: inset 0 0 0 1.5px var(--ip-ink-200); }
+    .cal-cell.logged { background: var(--ip-brand-50); color: var(--ip-brand-700); font-weight: 600; }
+    .cal-cell.selected { background: var(--ip-brand-600); color: var(--ip-white); box-shadow: none; font-weight: 600; }
+    .cal-cell.selected.weekend { color: var(--ip-white); }
+    .cal-cell-date { font-size: 12px; line-height: 1; }
+    .cal-cell-hours { font-size: 8px; font-weight: 700; margin-top: 1px; line-height: 1; opacity: 0.9; }
+    .cal-tally {
+      margin-top: 10px; padding-top: 8px;
+      border-top: 1px solid var(--ip-border);
+      font-size: 12px; color: var(--ip-ink-600);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cal-tally strong { color: var(--ip-ink-900); font-weight: 700; font-size: 13px; }
+    .cal-remove-btn {
+      width: 100%; margin-top: 8px; padding: 12px;
+      color: #B91C1C; background: transparent;
+      font-size: 13px; font-weight: 500; border-radius: 12px;
+      transition: background 150ms;
+    }
+    .cal-remove-btn:hover { background: #FEF2F2; }
+
+    .draft-card {
+      background: var(--ip-canvas);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 16px;
+      padding: 16px 16px 12px;
+      margin-top: 16px;
+    }
+    .draft-card-header {
+      font-size: 11px; font-weight: 600;
+      color: var(--ip-ink-400); letter-spacing: 0.6px;
+      text-transform: uppercase; margin-bottom: 12px;
+    }
+    .draft-card .field { margin-bottom: 12px; }
+    .draft-card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .field-input.multi {
+      height: auto; min-height: 96px;
+      padding: 14px 20px; line-height: 1.4;
+      font-family: inherit; resize: vertical;
+    }
+    .draft-add-btn {
+      width: 100%; height: 48px; border-radius: 12px;
+      background: var(--ip-brand-600); color: var(--ip-white);
+      font-size: 15px; font-weight: 600;
+      transition: all 180ms var(--ease-out);
+    }
+    .draft-add-btn:hover { background: var(--ip-brand-700); }
+    .draft-add-btn:active { transform: scale(0.985); }
+
+    .loc-input-wrap { position: relative; }
+    .loc-suggestions {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+      background: var(--ip-white);
+      border: 1.5px solid var(--ip-border);
+      border-radius: 12px;
+      margin-top: 4px;
+      max-height: 240px; overflow-y: auto;
+      box-shadow: 0 12px 28px -8px rgba(10, 37, 64, 0.18);
+    }
+    .loc-suggest {
+      display: block; width: 100%; text-align: left;
+      padding: 12px 16px;
+      font-size: 14px; color: var(--ip-ink-900); line-height: 1.4;
+      border-bottom: 1px solid var(--ip-ink-100);
+      transition: background 150ms var(--ease-out);
+    }
+    .loc-suggest:hover { background: var(--ip-brand-50); color: var(--ip-brand-700); }
+    .loc-suggest:last-child { border-bottom: none; }
+    .loc-attribution { font-size: 11px; color: var(--ip-ink-300); margin-top: 8px; }
+    .loc-attribution a { color: inherit; text-decoration: underline; }
+
     .send-status {
       display: flex; align-items: center; gap: 8px;
       padding: 10px 14px; border-radius: 12px;
@@ -446,73 +560,97 @@
       check: '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
     };
 
+    // Top-level trades — 4 buckets. Each carries grouped sub-category presets
+    // that surface automatically on Step 4 as sectioned chip lists.
     const CATEGORIES = [
-      { id: 'construction', title: 'Construction', sub: 'Framing, drywall, builds', presets: {
-        'Floor & Wall': { qty: 200, price: 22.50, unit: 'sq ft' },
-        'Rough Framing': { qty: 180, price: 28.00, unit: 'sq ft' },
-        'Roof Framing': { qty: 220, price: 22.50, unit: 'sq ft' },
-        'Drywall': { qty: 800, price: 2.50, unit: 'sq ft' },
-        'Insulation': { qty: 800, price: 1.80, unit: 'sq ft' },
-        'Backing & Blocking': { qty: 1, price: 350, unit: 'job' },
-      }},
-      { id: 'electrical', title: 'Electrical', sub: 'Wiring, panels, fixtures', presets: {
-        'Outlet install': { qty: 1, price: 120, unit: 'outlet' },
-        'Light fixture': { qty: 1, price: 180, unit: 'fixture' },
-        'Panel upgrade': { qty: 1, price: 2400, unit: 'job' },
-        'Service call': { qty: 1, price: 150, unit: 'visit' },
-        'Rewire room': { qty: 1, price: 850, unit: 'room' },
-        'EV charger': { qty: 1, price: 1200, unit: 'job' },
-      }},
-      { id: 'plumbing', title: 'Plumbing', sub: 'Pipes, fixtures, drains', presets: {
-        'Faucet replace': { qty: 1, price: 220, unit: 'fixture' },
-        'Drain unclog': { qty: 1, price: 180, unit: 'job' },
-        'Toilet install': { qty: 1, price: 380, unit: 'fixture' },
-        'Water heater': { qty: 1, price: 1800, unit: 'job' },
-        'Sink install': { qty: 1, price: 320, unit: 'fixture' },
-        'Service call': { qty: 1, price: 150, unit: 'visit' },
-      }},
-      { id: 'hvac', title: 'HVAC', sub: 'Heating, cooling, vents', presets: {
-        'Furnace tune-up': { qty: 1, price: 180, unit: 'visit' },
-        'AC install': { qty: 1, price: 3800, unit: 'unit' },
-        'Heat pump': { qty: 1, price: 5500, unit: 'unit' },
-        'Duct cleaning': { qty: 1, price: 450, unit: 'job' },
-        'Filter swap': { qty: 4, price: 35, unit: 'filter' },
-        'Service call': { qty: 1, price: 160, unit: 'visit' },
-      }},
-      { id: 'painting', title: 'Painting', sub: 'Interior, exterior, trim', presets: {
-        'Interior room': { qty: 1, price: 450, unit: 'room' },
-        'Exterior wall': { qty: 300, price: 4.50, unit: 'sq ft' },
-        'Trim & base': { qty: 100, price: 4.00, unit: 'lin ft' },
-        'Cabinet refinish': { qty: 12, price: 95, unit: 'door' },
-        'Ceiling': { qty: 200, price: 3.50, unit: 'sq ft' },
-        'Touch-ups': { qty: 2, price: 65, unit: 'hr' },
-      }},
-      { id: 'cleaning', title: 'Cleaning', sub: 'Home, office, post-build', presets: {
-        'Regular clean': { qty: 3, price: 50, unit: 'hr' },
-        'Deep clean': { qty: 1, price: 280, unit: 'visit' },
-        'Move in/out': { qty: 1, price: 380, unit: 'visit' },
-        'Carpet': { qty: 600, price: 0.55, unit: 'sq ft' },
-        'Windows': { qty: 20, price: 14, unit: 'window' },
-        'Post-construction': { qty: 1, price: 650, unit: 'job' },
-      }},
-      { id: 'landscaping', title: 'Landscaping', sub: 'Lawn, garden, snow', presets: {
-        'Lawn mowing': { qty: 1, price: 65, unit: 'visit' },
-        'Hedge trim': { qty: 2, price: 85, unit: 'hr' },
-        'Mulching': { qty: 4, price: 90, unit: 'yard' },
-        'Snow removal': { qty: 1, price: 80, unit: 'visit' },
-        'Garden upkeep': { qty: 3, price: 55, unit: 'hr' },
-        'Leaf cleanup': { qty: 1, price: 180, unit: 'visit' },
-      }},
-      { id: 'handyman', title: 'Handyman', sub: 'Repairs, assembly, mounts', presets: {
-        'TV mount': { qty: 1, price: 140, unit: 'job' },
-        'Assembly': { qty: 2, price: 85, unit: 'hr' },
-        'Picture hanging': { qty: 6, price: 25, unit: 'piece' },
-        'Drywall patch': { qty: 1, price: 180, unit: 'patch' },
-        'Door adjust': { qty: 1, price: 120, unit: 'door' },
-        'Hourly': { qty: 2, price: 75, unit: 'hr' },
-      }},
-      { id: 'other', title: 'Other', sub: 'Custom from scratch', presets: {} },
+      { id: 'construction', title: 'Construction', sub: 'All building trades',
+        groups: [
+          { label: 'Framing & Walls', presets: {
+            'Floor & Wall': { qty: 200, price: 22.50, unit: 'sq ft' },
+            'Rough Framing': { qty: 180, price: 28.00, unit: 'sq ft' },
+            'Roof Framing': { qty: 220, price: 22.50, unit: 'sq ft' },
+            'Drywall': { qty: 800, price: 2.50, unit: 'sq ft' },
+            'Insulation': { qty: 800, price: 1.80, unit: 'sq ft' },
+            'Backing & Blocking': { qty: 1, price: 350, unit: 'job' },
+          }},
+          { label: 'Electrical', presets: {
+            'Outlet install': { qty: 1, price: 120, unit: 'outlet' },
+            'Light fixture': { qty: 1, price: 180, unit: 'fixture' },
+            'Panel upgrade': { qty: 1, price: 2400, unit: 'job' },
+            'Rewire room': { qty: 1, price: 850, unit: 'room' },
+            'EV charger': { qty: 1, price: 1200, unit: 'job' },
+            'Service call': { qty: 1, price: 150, unit: 'visit' },
+          }},
+          { label: 'Plumbing', presets: {
+            'Faucet replace': { qty: 1, price: 220, unit: 'fixture' },
+            'Drain unclog': { qty: 1, price: 180, unit: 'job' },
+            'Toilet install': { qty: 1, price: 380, unit: 'fixture' },
+            'Water heater': { qty: 1, price: 1800, unit: 'job' },
+            'Sink install': { qty: 1, price: 320, unit: 'fixture' },
+          }},
+          { label: 'HVAC', presets: {
+            'Furnace tune-up': { qty: 1, price: 180, unit: 'visit' },
+            'AC install': { qty: 1, price: 3800, unit: 'unit' },
+            'Heat pump': { qty: 1, price: 5500, unit: 'unit' },
+            'Duct cleaning': { qty: 1, price: 450, unit: 'job' },
+            'Filter swap': { qty: 4, price: 35, unit: 'filter' },
+          }},
+          { label: 'Painting', presets: {
+            'Interior room': { qty: 1, price: 450, unit: 'room' },
+            'Exterior wall': { qty: 300, price: 4.50, unit: 'sq ft' },
+            'Trim & base': { qty: 100, price: 4.00, unit: 'lin ft' },
+            'Cabinet refinish': { qty: 12, price: 95, unit: 'door' },
+            'Ceiling': { qty: 200, price: 3.50, unit: 'sq ft' },
+            'Touch-ups': { qty: 2, price: 65, unit: 'hr' },
+          }},
+        ],
+      },
+      { id: 'handyman', title: 'Handyman', sub: 'Repairs, yard work, mounts',
+        groups: [
+          { label: 'Repairs & Assembly', presets: {
+            'TV mount': { qty: 1, price: 140, unit: 'job' },
+            'Assembly': { qty: 2, price: 85, unit: 'hr' },
+            'Picture hanging': { qty: 6, price: 25, unit: 'piece' },
+            'Drywall patch': { qty: 1, price: 180, unit: 'patch' },
+            'Door adjust': { qty: 1, price: 120, unit: 'door' },
+            'Hourly': { qty: 2, price: 75, unit: 'hr' },
+          }},
+          { label: 'Yard & Outdoor', presets: {
+            'Lawn mowing': { qty: 1, price: 65, unit: 'visit' },
+            'Hedge trim': { qty: 2, price: 85, unit: 'hr' },
+            'Mulching': { qty: 4, price: 90, unit: 'yard' },
+            'Snow removal': { qty: 1, price: 80, unit: 'visit' },
+            'Garden upkeep': { qty: 3, price: 55, unit: 'hr' },
+            'Leaf cleanup': { qty: 1, price: 180, unit: 'visit' },
+          }},
+        ],
+      },
+      { id: 'cleaning', title: 'Cleaning', sub: 'Home, office, post-build',
+        groups: [
+          { label: '', presets: {
+            'Regular clean': { qty: 3, price: 50, unit: 'hr' },
+            'Deep clean': { qty: 1, price: 280, unit: 'visit' },
+            'Move in/out': { qty: 1, price: 380, unit: 'visit' },
+            'Carpet': { qty: 600, price: 0.55, unit: 'sq ft' },
+            'Windows': { qty: 20, price: 14, unit: 'window' },
+            'Post-construction': { qty: 1, price: 650, unit: 'job' },
+          }},
+        ],
+      },
+      { id: 'other', title: 'Other', sub: 'Custom from scratch', groups: [] },
     ];
+
+    // Find a preset by name across all groups of a category.
+    function findPreset(categoryId, name) {
+      const cat = categoryById(categoryId);
+      if (!cat) return null;
+      for (const g of (cat.groups || [])) {
+        if (g.presets && Object.prototype.hasOwnProperty.call(g.presets, name)) {
+          return g.presets[name];
+        }
+      }
+      return null;
+    }
 
     // Recent contacts will be populated from localStorage as users complete invoices.
     // Empty by default — no seed data.
@@ -533,10 +671,15 @@
       lineItems: [],          // piecework only
       hourlyRate: 0,          // timesheet only
       timeEntries: [],        // timesheet only: { id, date, start, end, breakMinutes, totalMinutes }
-      editingEntry: null,     // entry being edited in the modal
+      calendarMonth: '',      // 'YYYY-MM-01' — month currently being viewed
+      selectedDate: '',       // 'YYYY-MM-DD' — day currently editable in the form
+      draftHours: { start: '08:00', end: '17:00', breakMinutes: 30 }, // last-used values
+      editingEntry: null,     // entry being edited in the modal (legacy)
       contactExtras: { email: '', phone: '', address: '', businessNumber: '' },
       showContactDetails: false,
       applyHst: true,         // toggle on Step 5 — sets HST 13% on/off
+      subcategory: null,      // active sub-group label on Step 4 piecework
+      draft: { description: '', qty: '', price: '', unit: '' }, // always-visible item editor
       modal: null,
       // Send modal state
       send: {
@@ -665,13 +808,123 @@
       setStep(4);
     }
 
-    function addPresetItem(name) {
-      const preset = categoryById(state.category).presets[name];
+    // ---- Location autocomplete (OpenStreetMap Nominatim) ----
+    let locationDebounceTimer = null;
+    let locationAbortCtrl = null;
+    let lastLocationItems = [];
+
+    function onJobSiteInput(value) {
+      state.jobSite = value;
+      clearTimeout(locationDebounceTimer);
+      if (locationAbortCtrl) { locationAbortCtrl.abort(); locationAbortCtrl = null; }
+      const q = value.trim();
+      if (q.length < 3) {
+        renderLocationSuggestions([]);
+        return;
+      }
+      locationDebounceTimer = setTimeout(() => triggerLocationLookup(q), 400);
+    }
+
+    async function triggerLocationLookup(query) {
+      locationAbortCtrl = new AbortController();
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search'
+          + '?q=' + encodeURIComponent(query)
+          + '&format=json&limit=5&addressdetails=0';
+        const res = await fetch(url, {
+          signal: locationAbortCtrl.signal,
+          headers: { 'Accept-Language': 'en-CA,en' },
+        });
+        if (!res.ok) throw new Error('nominatim http ' + res.status);
+        const data = await res.json();
+        const items = (Array.isArray(data) ? data : []).map(d => d.display_name).slice(0, 5);
+        renderLocationSuggestions(items);
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('[location] lookup failed', err);
+        renderLocationSuggestions([]);
+      }
+    }
+
+    function renderLocationSuggestions(items) {
+      lastLocationItems = items;
+      const host = document.getElementById('locationSuggestions');
+      if (!host) return;
+      if (!items || items.length === 0) {
+        host.innerHTML = '';
+        host.style.display = 'none';
+        return;
+      }
+      host.innerHTML = items.map((name, i) =>
+        `<button type="button" class="loc-suggest" data-idx="${i}">${escapeHtml(name)}</button>`
+      ).join('');
+      host.style.display = 'block';
+      host.querySelectorAll('.loc-suggest').forEach((btn, i) => {
+        btn.addEventListener('mousedown', (e) => {
+          // mousedown fires before blur — keeps the click registering
+          e.preventDefault();
+          selectLocation(lastLocationItems[i]);
+        });
+      });
+    }
+
+    function selectLocation(displayName) {
+      state.jobSite = displayName;
+      const input = document.getElementById('jobSiteInput');
+      if (input) input.value = displayName;
+      renderLocationSuggestions([]);
+    }
+
+    function onJobSiteBlur() {
+      // Small delay so a mousedown on a suggestion still wins
+      setTimeout(() => renderLocationSuggestions([]), 150);
+    }
+    function onJobSiteFocus() {
+      // Re-show if we have results and field still has matching content
+      const q = (state.jobSite || '').trim();
+      if (q.length >= 3 && lastLocationItems.length > 0) {
+        renderLocationSuggestions(lastLocationItems);
+      }
+    }
+
+    function selectSubcategory(label) {
+      state.subcategory = label;
+      render();
+    }
+
+    // Pre-fills the always-visible draft card with the preset values.
+    // Tapping a second preset overwrites the draft (per spec).
+    function fillDraftFromPreset(name) {
+      const preset = findPreset(state.category, name);
+      if (!preset) return;
+      state.draft = {
+        description: name,
+        qty: preset.qty,
+        price: preset.price,
+        unit: preset.unit,
+      };
+      render();
+      // Focus description so the user can immediately tweak the title
+      setTimeout(() => $('draftDesc')?.focus(), 50);
+    }
+
+    // Reads the draft inputs from the DOM and pushes a line item.
+    // Unit is carried over from the preset (state.draft.unit) — there's no
+    // visible unit input. Custom items without a preset have empty unit.
+    function commitDraft() {
+      const desc = $('draftDesc')?.value.trim() || '';
+      const qty = parseFloat($('draftQty')?.value) || 0;
+      const price = parseFloat($('draftPrice')?.value) || 0;
+      const unit = state.draft.unit || '';
+      if (!desc) {
+        $('draftDesc')?.focus();
+        return;
+      }
       state.lineItems.push({
         id: Date.now() + Math.random(),
-        description: name,
-        qty: preset.qty, price: preset.price, unit: preset.unit,
+        description: desc, qty: qty || 1, price, unit,
       });
+      state.draft = { description: '', qty: '', price: '', unit: '' };
       render();
     }
 
@@ -719,61 +972,163 @@
       render();
     }
 
-    // ---- Time entries (timesheet) ----
-    function openTimeEntry(entryId) {
-      if (entryId != null) {
-        const e = state.timeEntries.find(x => x.id === entryId);
-        if (e) state.editingEntry = { ...e };
-      } else {
-        const today = new Date().toISOString().slice(0, 10);
-        state.editingEntry = { id: null, date: today, start: '08:00', end: '17:00', breakMinutes: 30 };
-      }
-      state.modal = 'time-entry';
-      renderModal();
-    }
+    // ---- Time entries (timesheet) — calendar-based ----
     function setHourlyRate(value) {
       state.hourlyRate = parseFloat(value) || 0;
-      // light re-render of footer subtotal without full step rebuild
+      // Light update without re-rendering inputs (preserves focus)
       const sub = calculateTotals();
       const sf = document.getElementById('hourlySubtotal');
       if (sf) sf.textContent = fmt(sub.subtotal);
       const cta = document.getElementById('hourlyCta');
       if (cta) cta.disabled = !(state.timeEntries.length > 0 && state.hourlyRate > 0);
     }
-    function saveTimeEntry() {
-      const date = $('teDate').value;
-      const start = $('teStart').value;
-      const end = $('teEnd').value;
-      const breakMinutes = parseInt($('teBreak').value, 10) || 0;
-      if (!date || !start || !end) return;
+
+    // Format Date → YYYY-MM-DD in LOCAL time (not UTC, avoids day shifts).
+    function formatYMD(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    function monthLabelFromIso(monthIso) {
+      const [y, m] = monthIso.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString('en-CA', { month: 'long', year: 'numeric' });
+    }
+    function dayLabelFromIso(iso) {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-CA', {
+        weekday: 'short', month: 'short', day: 'numeric',
+      });
+    }
+    // Monday = 0, Sunday = 6 (Canadian week convention).
+    function mondayBasedWeekday(date) { return (date.getDay() + 6) % 7; }
+
+    function buildCalendarCells(monthIso) {
+      const [year, monthNum] = monthIso.split('-').map(Number);
+      const month = monthNum - 1;
+      const firstDay = new Date(year, month, 1);
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const startCol = mondayBasedWeekday(firstDay);
+      const cells = [];
+      for (let i = 0; i < startCol; i++) cells.push({ empty: true });
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(year, month, d);
+        cells.push({
+          empty: false,
+          day: d,
+          iso: formatYMD(date),
+          isWeekend: mondayBasedWeekday(date) >= 5,
+        });
+      }
+      return cells;
+    }
+
+    function ensureCalendarInit() {
+      const today = new Date();
+      if (!state.calendarMonth) {
+        state.calendarMonth = formatYMD(new Date(today.getFullYear(), today.getMonth(), 1));
+      }
+      if (!state.selectedDate) {
+        state.selectedDate = formatYMD(today);
+      }
+    }
+
+    // Captures whatever the user has currently typed into the Start/End/Break
+    // fields, so it survives across day clicks and month navigation.
+    function captureDraftHours() {
+      const s = document.getElementById('hourStart');
+      if (!s) return;
+      const start = s.value || state.draftHours.start;
+      const end = (document.getElementById('hourEnd')?.value) || state.draftHours.end;
+      const breakVal = document.getElementById('hourBreak')?.value;
+      const breakMinutes = breakVal === '' || breakVal == null
+        ? state.draftHours.breakMinutes
+        : (parseInt(breakVal, 10) || 0);
+      state.draftHours = { start, end, breakMinutes };
+    }
+
+    function selectCalDay(iso) {
+      captureDraftHours();
+      state.selectedDate = iso;
+      const existing = state.timeEntries.find(e => e.date === iso);
+      if (existing) {
+        state.draftHours = {
+          start: existing.start,
+          end: existing.end,
+          breakMinutes: existing.breakMinutes,
+        };
+      }
+      render();
+    }
+
+    function navCal(delta) {
+      captureDraftHours();
+      const [y, m] = state.calendarMonth.split('-').map(Number);
+      const newDate = new Date(y, m - 1 + delta, 1);
+      state.calendarMonth = formatYMD(newDate).slice(0, 7) + '-01';
+      render();
+    }
+
+    function saveSelectedDay() {
+      if (!state.selectedDate) return;
+      const start = document.getElementById('hourStart')?.value || '';
+      const end = document.getElementById('hourEnd')?.value || '';
+      const breakMinutes = parseInt(document.getElementById('hourBreak')?.value, 10) || 0;
+      if (!start || !end) return;
       const totalMinutes = computeEntryMinutes(start, end, breakMinutes);
       if (totalMinutes <= 0) {
         alert('End time must be after start time (or break too long).');
         return;
       }
-      const editing = state.editingEntry;
-      if (editing && editing.id != null) {
-        const idx = state.timeEntries.findIndex(x => x.id === editing.id);
-        if (idx >= 0) state.timeEntries[idx] = { id: editing.id, date, start, end, breakMinutes, totalMinutes };
+      state.draftHours = { start, end, breakMinutes };
+      const idx = state.timeEntries.findIndex(e => e.date === state.selectedDate);
+      if (idx >= 0) {
+        state.timeEntries[idx] = {
+          ...state.timeEntries[idx],
+          start, end, breakMinutes, totalMinutes,
+        };
       } else {
         state.timeEntries.push({
           id: Date.now() + Math.random(),
-          date, start, end, breakMinutes, totalMinutes,
+          date: state.selectedDate,
+          start, end, breakMinutes, totalMinutes,
         });
+        state.timeEntries.sort((a, b) => a.date.localeCompare(b.date));
       }
-      // keep entries sorted by date
-      state.timeEntries.sort((a, b) => a.date.localeCompare(b.date));
-      closeModal();
       render();
     }
-    function removeTimeEntry(id) {
-      state.timeEntries = state.timeEntries.filter(e => e.id !== id);
+
+    function removeSelectedDay() {
+      if (!state.selectedDate) return;
+      state.timeEntries = state.timeEntries.filter(e => e.date !== state.selectedDate);
       render();
     }
 
     function toggleHst() {
       state.applyHst = !state.applyHst;
       render();
+    }
+
+    // Step 5: edit hourly rate inline without losing input focus.
+    // Updates only the dependent DOM nodes (per-day amounts + totals).
+    function setReviewRate(value) {
+      state.hourlyRate = parseFloat(value) || 0;
+      const t = calculateTotals();
+      // Per-day amounts in the hours block
+      state.timeEntries.forEach(e => {
+        const el = document.getElementById('rev-day-' + e.date);
+        if (el) el.textContent = fmt((e.totalMinutes / 60) * state.hourlyRate);
+      });
+      // Hours block sub-total row
+      const dayTotal = document.getElementById('revDayTotal');
+      if (dayTotal) dayTotal.textContent = fmt(t.subtotal);
+      // Totals block
+      const sub = document.getElementById('revSubtotal');
+      if (sub) sub.textContent = fmt(t.subtotal);
+      const hst = document.getElementById('revHst');
+      if (hst) hst.textContent = fmt(t.hst);
+      const tot = document.getElementById('revTotal');
+      if (tot) tot.textContent = fmt(t.total);
     }
 
     // ============================================================
@@ -1016,10 +1371,15 @@
       state.lineItems = [];
       state.hourlyRate = 0;
       state.timeEntries = [];
+      state.calendarMonth = '';
+      state.selectedDate = '';
+      state.draftHours = { start: '08:00', end: '17:00', breakMinutes: 30 };
       state.editingEntry = null;
       state.contactExtras = { email: '', phone: '', address: '', businessNumber: '' };
       state.showContactDetails = false;
       state.applyHst = true;
+      state.subcategory = null;
+      state.draft = { description: '', qty: '', price: '', unit: '' };
       state.modal = null;
       state.send = {
         recipient: '', kind: 'unknown', lookup: { state: 'idle' },
@@ -1030,6 +1390,13 @@
 
     function goBack() {
       if (state.view !== 'flow') return;
+      // Within Step 4 piecework: if user drilled into a sub-category,
+      // back returns to the cards view instead of jumping to Step 3.
+      if (state.step === 4 && state.type === 'piecework' && state.subcategory) {
+        state.subcategory = null;
+        render();
+        return;
+      }
       if (state.step === 1) {
         state.view = 'hub';
         state.category = null;
@@ -1181,7 +1548,17 @@
           <h2 class="headline">Where and<br>when?</h2>
           <div class="field">
             <div class="field-label">Location</div>
-            <input class="field-input" id="jobSiteInput" placeholder="Job site, address, project name…" value="${escapeHtml(state.jobSite)}" />
+            <div class="loc-input-wrap">
+              <input class="field-input" id="jobSiteInput"
+                placeholder="Job site, address, project name…"
+                value="${escapeHtml(state.jobSite)}"
+                autocomplete="off"
+                oninput="onJobSiteInput(this.value)"
+                onfocus="onJobSiteFocus()"
+                onblur="onJobSiteBlur()" />
+              <div id="locationSuggestions" class="loc-suggestions" style="display:none;"></div>
+            </div>
+            <div class="loc-attribution">Address suggestions © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
           </div>
           ${state.type === 'piecework' ? `
             <div class="field">
@@ -1205,8 +1582,16 @@
     function renderStep4Piecework() {
       const cat = categoryById(state.category);
       const t = calculateTotals();
-      const presetNames = Object.keys(cat.presets);
-      const hasPresets = presetNames.length > 0;
+      const groups = (cat.groups || []).filter(g => g.presets && Object.keys(g.presets).length > 0);
+      const hasGroups = groups.length > 0;
+      // Show cards when there's more than one sub-category AND nothing drilled
+      const showCards = groups.length > 1 && !state.subcategory;
+      // Resolve the active group (single group or whichever was tapped)
+      const activeGroup = !showCards && hasGroups
+        ? (groups.length === 1
+            ? groups[0]
+            : groups.find(g => g.label === state.subcategory))
+        : null;
 
       $('footer').classList.remove('hidden');
       $('footer').innerHTML = `
@@ -1219,19 +1604,63 @@
         <button class="cta" ${state.lineItems.length === 0 ? 'disabled' : ''} onclick="setStep(5)">Review invoice →</button>
       `;
 
+      const eyebrowParts = [cat.title.toUpperCase()];
+      if (activeGroup && activeGroup.label) eyebrowParts.push(activeGroup.label.toUpperCase());
+      if (state.contact) eyebrowParts.push(escapeHtml(state.contact));
+      const eyebrow = eyebrowParts.join(' · ');
+
+      // ---- Cards view: pick a sub-category ----
+      const cardsHtml = showCards
+        ? `<div class="section-label">Pick a category</div>
+           ${groups.map(g => `
+             <button class="type-card" onclick="selectSubcategory('${escapeHtml(g.label)}')">
+               <div>
+                 <div class="type-title">${escapeHtml(g.label)}</div>
+                 <div class="type-sub">${Object.keys(g.presets).length} preset${Object.keys(g.presets).length !== 1 ? 's' : ''}</div>
+               </div>
+               <div class="type-arrow">→</div>
+             </button>
+           `).join('')}`
+        : '';
+
+      // ---- Chips view: presets of the active group (tapping fills the draft) ----
+      const chipsHtml = activeGroup
+        ? `${activeGroup.label
+              ? `<div class="section-label">${escapeHtml(activeGroup.label)}</div>`
+              : '<div class="section-label">Quick add</div>'}
+           <div class="chips">
+             ${Object.keys(activeGroup.presets).map(p =>
+               `<button class="chip" onclick="fillDraftFromPreset('${escapeHtml(p)}')">+ ${escapeHtml(p)}</button>`
+             ).join('')}
+           </div>`
+        : '';
+
+      // ---- Draft card: always visible — chip taps pre-fill it; user can edit any field ----
+      const d = state.draft;
+      const draftHtml = `
+        <div class="draft-card">
+          <div class="draft-card-header">New item</div>
+          <div class="field">
+            <textarea class="field-input multi" id="draftDesc"
+              placeholder="Description — tap a chip above, or type the service here"
+              autocomplete="off">${escapeHtml(d.description)}</textarea>
+          </div>
+          <div class="draft-card-row">
+            <input class="field-input" id="draftQty" type="number" step="0.01"
+              placeholder="Qty" value="${escapeHtml(String(d.qty))}" />
+            <input class="field-input" id="draftPrice" type="number" step="0.01"
+              placeholder="Price" value="${escapeHtml(String(d.price))}" />
+          </div>
+          <button class="draft-add-btn" onclick="commitDraft()">+ Add to invoice</button>
+        </div>
+      `;
+
       return `
         <div class="step${state.direction === 'back' ? ' back' : ''}">
-          <div class="eyebrow">${cat.title.toUpperCase()} · ${escapeHtml(state.contact)}</div>
+          <div class="eyebrow">${eyebrow}</div>
           <h2 class="headline">What did<br>you do?</h2>
-          ${hasPresets ? `
-            <div class="section-label">Quick add</div>
-            <div class="chips">
-              ${presetNames.map(p => `<button class="chip" onclick="addPresetItem('${escapeHtml(p)}')">+ ${escapeHtml(p)}</button>`).join('')}
-              <button class="chip custom" onclick="openCustomItem()">+ Custom</button>
-            </div>
-          ` : `
-            <button class="chip custom" style="width: 100%; margin-bottom: 24px;" onclick="openCustomItem()">+ Add custom item</button>
-          `}
+          ${hasGroups ? (showCards ? cardsHtml : chipsHtml) : ''}
+          ${draftHtml}
           ${state.lineItems.length > 0
             ? `<div class="section-label">Added (${state.lineItems.length}) · tap to edit</div>
                ${state.lineItems.map(item => `
@@ -1241,21 +1670,23 @@
                      <button class="line-item-remove" onclick="event.stopPropagation(); removeLineItem(${item.id})" aria-label="Remove">×</button>
                    </div>
                    <div class="line-item-row">
-                     <div class="line-item-meta">${item.qty} ${escapeHtml(item.unit)} × ${fmt(item.price)}</div>
+                     <div class="line-item-meta">${item.qty}${item.unit ? ' ' + escapeHtml(item.unit) : ''} × ${fmt(item.price)}</div>
                      <div class="line-item-amount">${fmt(item.qty * item.price)}</div>
                    </div>
                  </div>
                `).join('')}`
-            : `<div class="empty">${hasPresets ? 'Tap a chip above to add your first line' : 'Tap above to add your first custom item'}</div>`
+            : ''
           }
         </div>
       `;
     }
 
     function renderStep4Hourly() {
+      ensureCalendarInit();
       const cat = categoryById(state.category);
       const t = calculateTotals();
-      const canContinue = state.timeEntries.length > 0 && state.hourlyRate > 0;
+      // Rate gate dropped — hourly rate input lives elsewhere now
+      const canContinue = state.timeEntries.length > 0;
 
       $('footer').classList.remove('hidden');
       $('footer').innerHTML = `
@@ -1268,33 +1699,80 @@
         <button class="cta" id="hourlyCta" ${canContinue ? '' : 'disabled'} onclick="setStep(5)">Review invoice →</button>
       `;
 
+      // ---- Calendar grid ----
+      const cells = buildCalendarCells(state.calendarMonth);
+      const todayIso = formatYMD(new Date());
+      const entriesByDate = new Map(state.timeEntries.map(e => [e.date, e]));
+
+      const calendarHtml = `
+        <div class="cal-card">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="navCal(-1)" aria-label="Previous month">‹</button>
+            <div class="cal-title">${monthLabelFromIso(state.calendarMonth)}</div>
+            <button class="cal-nav" onclick="navCal(1)" aria-label="Next month">›</button>
+          </div>
+          <div class="cal-grid">
+            ${['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => `<div class="cal-dow">${d}</div>`).join('')}
+            ${cells.map(c => {
+              if (c.empty) return '<div class="cal-cell empty"></div>';
+              const entry = entriesByDate.get(c.iso);
+              const classes = ['cal-cell'];
+              if (c.isWeekend) classes.push('weekend');
+              if (c.iso === todayIso) classes.push('today');
+              if (entry) classes.push('logged');
+              if (c.iso === state.selectedDate) classes.push('selected');
+              return `<button class="${classes.join(' ')}" onclick="selectCalDay('${c.iso}')">
+                <span class="cal-cell-date">${c.day}</span>
+                ${entry ? `<span class="cal-cell-hours">${decimalHours(entry.totalMinutes)}</span>` : ''}
+              </button>`;
+            }).join('')}
+          </div>
+          ${state.timeEntries.length > 0 ? `
+            <div class="cal-tally">
+              <span>${formatHM(t.totalMinutes)} logged · ${state.timeEntries.length} day${state.timeEntries.length > 1 ? 's' : ''}</span>
+              <strong>${fmt(t.subtotal)}</strong>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      // ---- Always-visible entry form ----
+      const h = state.draftHours;
+      const existing = state.selectedDate ? entriesByDate.get(state.selectedDate) : null;
+      const dateLabel = state.selectedDate
+        ? dayLabelFromIso(state.selectedDate)
+        : 'Pick a day above';
+
+      const formHtml = `
+        <div class="draft-card">
+          <div class="draft-card-header">${escapeHtml(dateLabel)}</div>
+          <div class="draft-card-row">
+            <div>
+              <div class="field-label">Start</div>
+              <input class="field-input" type="time" id="hourStart" value="${escapeHtml(h.start)}" />
+            </div>
+            <div>
+              <div class="field-label">End</div>
+              <input class="field-input" type="time" id="hourEnd" value="${escapeHtml(h.end)}" />
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Break (minutes)</div>
+            <input class="field-input" type="number" id="hourBreak" min="0" step="5" value="${h.breakMinutes ?? 30}" />
+          </div>
+          <button class="draft-add-btn" onclick="saveSelectedDay()" ${state.selectedDate ? '' : 'disabled'}>
+            ${existing ? 'Update day' : '+ Save day'}
+          </button>
+          ${existing ? `<button class="cal-remove-btn" onclick="removeSelectedDay()">Remove this day</button>` : ''}
+        </div>
+      `;
+
       return `
         <div class="step${state.direction === 'back' ? ' back' : ''}">
           <div class="eyebrow">${cat.title.toUpperCase()} · ${escapeHtml(state.contact)}</div>
           <h2 class="headline">How many<br>hours?</h2>
-          <div class="field">
-            <div class="field-label">Hourly rate (CAD)</div>
-            <input class="field-input" type="number" min="0" step="0.01" placeholder="e.g. 45.00"
-              value="${state.hourlyRate || ''}"
-              oninput="setHourlyRate(this.value)" />
-          </div>
-          <div class="section-label">Days worked</div>
-          ${state.timeEntries.length > 0
-            ? state.timeEntries.map(e => `
-                <div class="line-item" onclick="openTimeEntry(${e.id})" style="cursor: pointer;">
-                  <div class="line-item-row">
-                    <div class="line-item-desc">${escapeHtml(e.date)}</div>
-                    <button class="line-item-remove" onclick="event.stopPropagation(); removeTimeEntry(${e.id})" aria-label="Remove">×</button>
-                  </div>
-                  <div class="line-item-row">
-                    <div class="line-item-meta">${escapeHtml(e.start)} – ${escapeHtml(e.end)}${e.breakMinutes ? ' · break ' + e.breakMinutes + 'm' : ''}</div>
-                    <div class="line-item-amount">${formatHM(e.totalMinutes)}</div>
-                  </div>
-                </div>
-              `).join('')
-            : `<div class="empty">No days yet. Tap below to add one.</div>`
-          }
-          <button class="chip custom" style="width: 100%; margin-top: 12px;" onclick="openTimeEntry()">+ Add day</button>
+          ${calendarHtml}
+          ${formHtml}
         </div>
       `;
     }
@@ -1311,17 +1789,24 @@
       const isHourly = state.type === 'timesheet';
       const itemsBlock = isHourly
         ? `<div class="review-block">
-             <div class="review-label" style="margin-bottom: 12px;">Hours · ${state.hourlyRate ? fmt(state.hourlyRate) + '/hr' : '—'}</div>
+             <div class="review-label" style="margin-bottom: 12px;">Hours</div>
              ${state.timeEntries.map(e => `
                <div class="review-items-row">
                  <span>${escapeHtml(e.date)} · ${formatHM(e.totalMinutes)}</span>
-                 <span class="amt">${fmt((e.totalMinutes / 60) * state.hourlyRate)}</span>
+                 <span class="amt" id="rev-day-${escapeHtml(e.date)}">${fmt((e.totalMinutes / 60) * state.hourlyRate)}</span>
                </div>
              `).join('')}
              <div class="review-items-row" style="font-weight: 600;">
                <span>Total · ${formatHM(t.totalMinutes)}</span>
-               <span class="amt">${fmt(t.subtotal)}</span>
+               <span class="amt" id="revDayTotal">${fmt(t.subtotal)}</span>
              </div>
+           </div>
+           <div class="field" style="margin-bottom: 8px;">
+             <div class="field-label">Hourly rate (CAD)</div>
+             <input class="field-input" type="number" min="0" step="0.01"
+               placeholder="e.g. 45.00"
+               value="${state.hourlyRate || ''}"
+               oninput="setReviewRate(this.value)" />
            </div>`
         : `<div class="review-block">
              <div class="review-label" style="margin-bottom: 12px;">Line items</div>
@@ -1372,17 +1857,17 @@
           <div class="totals" style="border-top: none; padding-top: 8px;">
             <div class="totals-row">
               <span class="totals-label">Subtotal</span>
-              <span class="totals-value">${fmt(t.subtotal)}</span>
+              <span class="totals-value" id="revSubtotal">${fmt(t.subtotal)}</span>
             </div>
             ${state.applyHst ? `
               <div class="totals-row">
                 <span class="totals-label">HST (13%)</span>
-                <span class="totals-value">${fmt(t.hst)}</span>
+                <span class="totals-value" id="revHst">${fmt(t.hst)}</span>
               </div>
             ` : ''}
             <div class="totals-row grand">
               <span>Total</span>
-              <span>${fmt(t.total)}</span>
+              <span id="revTotal">${fmt(t.total)}</span>
             </div>
           </div>
         </div>
@@ -1505,37 +1990,6 @@
         renderTurnstile();
         updateSendStatus();
         updateSendButton();
-      } else if (state.modal === 'time-entry') {
-        const e = state.editingEntry || {};
-        root.innerHTML = `
-          <div class="modal-bg" onclick="if(event.target===this) closeModal()">
-            <div class="modal">
-              <div class="modal-title">${e.id != null ? 'Edit day' : 'Add day'}</div>
-              <div style="margin-bottom: 14px;">
-                <div class="field-label">Date</div>
-                <input class="field-input" id="teDate" type="date" value="${escapeHtml(e.date || '')}" autofocus />
-              </div>
-              <div class="modal-row">
-                <div>
-                  <div class="field-label">Start</div>
-                  <input class="field-input" id="teStart" type="time" value="${escapeHtml(e.start || '08:00')}" />
-                </div>
-                <div>
-                  <div class="field-label">End</div>
-                  <input class="field-input" id="teEnd" type="time" value="${escapeHtml(e.end || '17:00')}" />
-                </div>
-              </div>
-              <div style="margin-bottom: 14px;">
-                <div class="field-label">Break (minutes)</div>
-                <input class="field-input" id="teBreak" type="number" min="0" step="5" value="${e.breakMinutes ?? 30}" />
-              </div>
-              <div class="modal-actions">
-                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-                <button class="btn-primary" onclick="saveTimeEntry()">${e.id != null ? 'Save' : 'Add day'}</button>
-              </div>
-            </div>
-          </div>
-        `;
       } else {
         root.innerHTML = '';
       }
@@ -1797,7 +2251,7 @@ ${body}
         for (const item of payload.line_items) {
           y -= 22;
           page.drawText(item.description, { x: 48, y, size: 11, font: helv, color: ink });
-          const meta = `${item.qty} ${item.unit} × ${fmt(item.price)}`;
+          const meta = `${item.qty}${item.unit ? ' ' + item.unit : ''} × ${fmt(item.price)}`;
           page.drawText(meta, { x: 360, y, size: 10, font: helv, color: ink600 });
           const amt = fmt(item.amount);
           page.drawText(amt, {
